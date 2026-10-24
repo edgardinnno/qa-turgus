@@ -6,8 +6,8 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "qa-turgus-db"
-# Pakeiskite į savo DB id po `npx wrangler d1 create qa-turgus-db` (lokaliai tinka bet koks).
-database_id = "00000000-0000-0000-0000-000000000000"
+# Gaunamas su `npx wrangler d1 create qa-turgus-db`.
+database_id = "ad71c752-6655-410e-a586-ebee94a4a33a"
 migrations_dir = "migrations"
 
 # Kas naktį ištrinami seni testiniai vartotojai ir pasibaigusios sesijos.

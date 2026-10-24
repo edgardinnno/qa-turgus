@@ -2,7 +2,7 @@
 // Norėdami lokalų puslapį nukreipti į kitą API: localStorage.setItem('qa_api_url', 'https://…/api')
 (function () {
   const LOCAL_API = 'http://localhost:8787/api';
-  const PRODUCTION_API = 'https://qa-turgus-api.REPLACE_ME.workers.dev/api';
+  const PRODUCTION_API = 'https://qa-turgus-api.qa-turgus-api.workers.dev/api';
   let override = null;
   try {
     override = localStorage.getItem('qa_api_url');

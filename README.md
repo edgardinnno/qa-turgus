@@ -6,9 +6,9 @@ fixtures, `storageState`, tinklo mockinimas) ir **API testai** (`request` fixtur
 | Dalis | Technologija | Kur veikia |
 | --- | --- | --- |
 | Svetainė (frontend) | HTML + CSS + JavaScript, be build žingsnio | GitHub Pages: https://edgardinnno.github.io/qa-turgus/ |
-| REST API (backend) | [Hono](https://hono.dev) + Cloudflare Workers | `https://qa-turgus-api.<subdomenas>.workers.dev` |
+| REST API (backend) | [Hono](https://hono.dev) + Cloudflare Workers | `https://qa-turgus-api.qa-turgus-api.workers.dev` |
 | Duomenų bazė | Cloudflare D1 (SQLite) | Cloudflare |
-| API dokumentacija | OpenAPI 3.1 + Swagger UI | `<API adresas>/docs` |
+| API dokumentacija | OpenAPI 3.1 + Swagger UI | https://qa-turgus-api.qa-turgus-api.workers.dev/docs |
 
 Vartotojai, krepšeliai, užsakymai ir atsiliepimai saugomi serverio duomenų bazėje. Naršyklėje lieka tik
 sesijos token (slapukas `qa_session`), vartotojo kopija (`localStorage.qa_user`) ir neprisijungusio svečio krepšelis.
@@ -36,7 +36,7 @@ npx serve . -l 5500
 
 Atidarykite http://localhost:5500. Puslapis, atidarytas per `localhost`, pats jungiasi prie lokalaus API
 (`js/config.js`). Norėdami lokalią svetainę nukreipti į internetinį API, naršyklės konsolėje įvykdykite:
-`localStorage.setItem('qa_api_url', 'https://…workers.dev/api')`.
+`localStorage.setItem('qa_api_url', 'https://qa-turgus-api.qa-turgus-api.workers.dev/api')`.
 
 **Lokalios DB išvalymas:** ištrinkite `api/.wrangler/` ir vėl paleiskite `npm run dev`.
 
@@ -189,7 +189,7 @@ test('registracija ir prisijungimas per API', async ({ request }) => {
 });
 ```
 
-`playwright.config.ts`: `use: { baseURL: 'https://qa-turgus-api.<subdomenas>.workers.dev' }`
+`playwright.config.ts`: `use: { baseURL: 'https://qa-turgus-api.qa-turgus-api.workers.dev' }`
 (API testams) ir `https://edgardinnno.github.io/qa-turgus/` (UI testams – santykiniai keliai be pradinio `/`).
 
 ### Greitas prisijungimas UI testuose per API
