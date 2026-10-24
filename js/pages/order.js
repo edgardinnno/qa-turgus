@@ -7,8 +7,16 @@
   const id = QA.param('id');
   const isNew = QA.param('new') === '1';
 
-  function render() {
-    const order = QA.getOrder(id);
+  async function render() {
+    let order;
+    try {
+      order = await QA.getOrder(id);
+    } catch (err) {
+      $('loading').hidden = true;
+      QA.toast(err.message, 'error');
+      return;
+    }
+    $('loading').hidden = true;
     if (!order) {
       $('not-found').hidden = false;
       $('order').hidden = true;
@@ -28,7 +36,7 @@
           <div class="success-icon" aria-hidden="true">✓</div>
           <div>
             <h1>Ačiū! Užsakymas pateiktas</h1>
-            <p>Patvirtinimą „išsiuntėme“ adresu <strong>${QA.escapeHtml(order.userEmail)}</strong>. Užsakymo būseną galite stebėti paskyroje.</p>
+            <p>Patvirtinimą „išsiuntėme“ adresu <strong>${QA.escapeHtml(QA.currentUser().email)}</strong>. Užsakymo būseną galite stebėti paskyroje.</p>
           </div>
         </div>`
       : `<h1>Užsakymas ${order.id}</h1>`;
@@ -39,7 +47,7 @@
         <div class="order-head">
           <div><span class="muted small">Užsakymo numeris</span><div class="order-number" data-testid="order-number">${order.id}</div></div>
           <div><span class="muted small">Data</span><div data-testid="order-date">${QA.formatDate(order.createdAt, true)}</div></div>
-          <div><span class="muted small">Būsena</span><div><span class="status status-${order.status}" data-testid="order-status">${QA.ORDER_STATUS[order.status]}</span></div></div>
+          <div><span class="muted small">Būsena</span><div><span class="status status-${order.status}" data-testid="order-status">${order.statusLabel}</span></div></div>
           <div><span class="muted small">Suma</span><div class="strong" data-testid="order-total">${QA.money(t.total)}</div></div>
         </div>
         <div class="table-wrap">
@@ -49,9 +57,9 @@
               ${order.items.map((i) => `
                 <tr data-testid="order-item">
                   <td><span data-testid="order-item-name">${QA.escapeHtml(i.name)}</span>${i.size || i.color ? `<div class="muted small">${QA.escapeHtml(QA.optionsText(i))}</div>` : ''}</td>
-                  <td data-testid="order-item-qty">${i.qty}</td>
+                  <td data-testid="order-item-qty">${i.quantity}</td>
                   <td>${QA.money(i.price)}</td>
-                  <td>${QA.money(i.price * i.qty)}</td>
+                  <td>${QA.money(i.price * i.quantity)}</td>
                 </tr>`).join('')}
             </tbody>
           </table>

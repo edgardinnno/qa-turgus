@@ -127,7 +127,7 @@
       });
     });
 
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       let ok = true;
       if (size && !size.value) {
@@ -148,13 +148,17 @@
       if (!ok) return;
 
       const checkedColor = form.querySelector('input[name="color"]:checked');
+      const btn = form.querySelector('[type="submit"]');
+      QA.setLoading(btn, true, 'Dedama…');
       try {
-        QA.addToCart(p, amount, { size: size ? size.value : null, color: checkedColor ? checkedColor.value : null });
+        await QA.addToCart(p, amount, { size: size ? size.value : null, color: checkedColor ? checkedColor.value : null });
         QA.toast(`„${p.name}“ (${amount} vnt.) pridėta į krepšelį.`);
         qty.value = '1';
       } catch (err) {
         QA.setFieldError(qty, err.message);
         QA.toast(err.message, 'error');
+      } finally {
+        QA.setLoading(btn, false);
       }
     });
   }
@@ -180,8 +184,14 @@
     $('reviews-link').addEventListener('click', () => select($('tab-reviews')));
   }
 
-  function renderReviews(p) {
-    const reviews = QA.getReviews(p);
+  async function renderReviews(p) {
+    let reviews;
+    try {
+      reviews = await QA.getReviews(p.id);
+    } catch (err) {
+      $('reviews-list').innerHTML = `<p class="alert alert-error" role="alert">${QA.escapeHtml(err.message)}</p>`;
+      return;
+    }
     document.querySelector('[data-testid="reviews-count"]').textContent = String(reviews.length);
     $('reviews-list').innerHTML = reviews.length
       ? reviews.map((r) => `
@@ -240,9 +250,10 @@
       try {
         await QA.addReview(p.id, Number($('review-rating').value), $('review-text').value.trim());
         form.reset();
-        renderReviews(p);
+        await renderReviews(p);
         QA.toast('Ačiū! Jūsų atsiliepimas paskelbtas.');
       } catch (err) {
+        QA.showServerErrors(err, { rating: 'review-rating', text: 'review-text' });
         QA.toast(err.message, 'error');
       } finally {
         QA.setLoading(btn, false);
@@ -264,7 +275,7 @@
 
   async function load() {
     try {
-      const { product, products } = await QA.fetchProduct(id);
+      const product = await QA.fetchProduct(id);
       $('loading').hidden = true;
       if (!product) {
         $('not-found').hidden = false;
@@ -274,8 +285,9 @@
       document.title = `${product.name} | QA Turgus`;
       renderBreadcrumbs(product);
       renderProduct(product);
-      renderRelated(product, products);
       $('product').hidden = false;
+      const related = await QA.fetchProducts({ category: product.category, limit: 5 });
+      renderRelated(product, related.items);
     } catch (err) {
       $('loading').hidden = true;
       $('load-error').textContent = err.message;

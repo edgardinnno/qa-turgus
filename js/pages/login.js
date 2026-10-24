@@ -40,6 +40,7 @@
       QA.flash(`Sveiki sugrįžę, ${user.firstName}!`);
       location.href = redirect;
     } catch (err) {
+      QA.showServerErrors(err, { email: 'login-email', password: 'login-password' });
       error.textContent = err.message;
       error.hidden = false;
       $('login-password').value = '';

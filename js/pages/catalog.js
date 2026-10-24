@@ -1,8 +1,9 @@
-/* Prekių katalogas: paieška, filtrai, rikiavimas, puslapiavimas (būsena saugoma URL). */
+/* Prekių katalogas: paieška, filtrai, rikiavimas ir puslapiavimas vyksta serveryje (GET /api/products). */
 (function () {
   'use strict';
   const QA = window.QA;
   const PER_PAGE = 8;
+  const SORTS = ['popular', 'price-asc', 'price-desc', 'name-asc', 'name-desc', 'rating'];
   const $ = (id) => document.getElementById(id);
   const els = {
     form: $('filters'),
@@ -18,24 +19,16 @@
     pagination: $('pagination'),
   };
 
-  const SORTERS = {
-    popular: (a, b) => b.reviewsCount - a.reviewsCount,
-    'price-asc': (a, b) => a.price - b.price,
-    'price-desc': (a, b) => b.price - a.price,
-    'name-asc': (a, b) => a.name.localeCompare(b.name, 'lt'),
-    'name-desc': (a, b) => b.name.localeCompare(a.name, 'lt'),
-    rating: (a, b) => b.rating - a.rating,
-  };
-
   const params = new URLSearchParams(location.search);
   const state = {
     q: params.get('q') || '',
     cat: QA.CATEGORIES[params.get('cat')] ? params.get('cat') : '',
-    sort: SORTERS[params.get('sort')] ? params.get('sort') : 'popular',
+    sort: SORTS.includes(params.get('sort')) ? params.get('sort') : 'popular',
     inStock: params.get('stock') === '1',
     page: Math.max(1, parseInt(params.get('page'), 10) || 1),
   };
   let products = [];
+  let requestId = 0;
 
   Object.entries(QA.CATEGORIES).forEach(([value, label]) => els.category.add(new Option(label, value)));
 
@@ -55,18 +48,6 @@
     if (state.page > 1) p.set('page', String(state.page));
     const qs = p.toString();
     history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
-  }
-
-  // „sviesa“ randa „Šviesa“ – ignoruojame diakritinius ženklus.
-  const normalize = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-
-  function filtered() {
-    const q = normalize(state.q.trim());
-    return products
-      .filter((p) => !state.cat || p.category === state.cat)
-      .filter((p) => !state.inStock || p.stock > 0)
-      .filter((p) => !q || normalize(`${p.name} ${p.description} ${QA.CATEGORIES[p.category]}`).includes(q))
-      .sort(SORTERS[state.sort]);
   }
 
   function defaultOptions(p) {
@@ -128,33 +109,42 @@
     els.pagination.innerHTML = html;
   }
 
-  function render() {
-    const list = filtered();
-    const pages = Math.max(1, Math.ceil(list.length / PER_PAGE));
-    state.page = Math.min(state.page, pages);
-    const slice = list.slice((state.page - 1) * PER_PAGE, state.page * PER_PAGE);
-    els.grid.innerHTML = slice.map(card).join('');
-    els.count.textContent = `Rasta ${list.length} ${QA.plural(list.length, ['prekė', 'prekės', 'prekių'])}`;
-    els.empty.hidden = list.length > 0;
-    renderPagination(pages);
-    syncUrl();
-  }
-
   async function load() {
+    const id = ++requestId;
     els.loading.hidden = false;
     els.error.hidden = true;
-    els.grid.innerHTML = '';
-    els.count.textContent = '';
+    els.empty.hidden = true;
+    els.grid.setAttribute('aria-busy', 'true');
     try {
-      products = await QA.fetchProducts();
-      render();
+      const res = await QA.fetchProducts({
+        q: state.q.trim(), category: state.cat, sort: state.sort, inStock: state.inStock, page: state.page, limit: PER_PAGE,
+      });
+      if (id !== requestId) return; // atėjo senesnės užklausos atsakymas
+      if (res.total > 0 && state.page > res.pages) {
+        state.page = res.pages;
+        load();
+        return;
+      }
+      products = res.items;
+      els.grid.innerHTML = products.map(card).join('');
+      els.count.textContent = `Rasta ${res.total} ${QA.plural(res.total, ['prekė', 'prekės', 'prekių'])}`;
+      els.empty.hidden = res.total > 0;
+      renderPagination(res.pages);
+      syncUrl();
     } catch (err) {
+      if (id !== requestId) return;
+      els.grid.innerHTML = '';
+      els.pagination.innerHTML = '';
+      els.count.textContent = '';
       els.error.innerHTML = `<span>${QA.escapeHtml(err.message)}</span>
         <button type="button" class="btn btn-secondary btn-sm" data-testid="retry-load">Bandyti dar kartą</button>`;
       els.error.querySelector('button').addEventListener('click', load);
       els.error.hidden = false;
     } finally {
-      els.loading.hidden = true;
+      if (id === requestId) {
+        els.loading.hidden = true;
+        els.grid.removeAttribute('aria-busy');
+      }
     }
   }
 
@@ -164,7 +154,7 @@
     clearTimeout(debounce);
     state.q = els.search.value;
     state.page = 1;
-    render();
+    load();
   };
   els.search.addEventListener('input', () => {
     clearTimeout(debounce);
@@ -177,29 +167,29 @@
   els.category.addEventListener('change', () => {
     state.cat = els.category.value;
     state.page = 1;
-    render();
+    load();
   });
   els.sort.addEventListener('change', () => {
     state.sort = els.sort.value;
     state.page = 1;
-    render();
+    load();
   });
   els.inStock.addEventListener('change', () => {
     state.inStock = els.inStock.checked;
     state.page = 1;
-    render();
+    load();
   });
   $('clear-filters').addEventListener('click', () => {
     Object.assign(state, { q: '', cat: '', sort: 'popular', inStock: false, page: 1 });
     syncControls();
-    render();
+    load();
   });
   document.querySelectorAll('[data-category-link]').forEach((link) => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
       Object.assign(state, { cat: link.dataset.categoryLink, page: 1 });
       syncControls();
-      render();
+      load();
       $('catalog-title').scrollIntoView({ behavior: 'smooth' });
     });
   });
@@ -207,15 +197,16 @@
     const b = e.target.closest('[data-page]');
     if (!b || b.disabled) return;
     state.page = Number(b.dataset.page);
-    render();
+    load();
     $('catalog-title').scrollIntoView({ behavior: 'smooth' });
   });
-  els.grid.addEventListener('click', (e) => {
+  els.grid.addEventListener('click', async (e) => {
     const b = e.target.closest('button[data-id]');
-    if (!b) return;
+    if (!b || b.disabled) return;
     const p = products.find((x) => x.id === b.dataset.id);
+    b.disabled = true;
     try {
-      QA.addToCart(p, 1, defaultOptions(p));
+      await QA.addToCart(p, 1, defaultOptions(p));
       QA.toast(`„${p.name}“ pridėta į krepšelį.`);
       b.textContent = '✓ Pridėta';
       b.classList.add('added');
@@ -225,6 +216,8 @@
       }, 1500);
     } catch (err) {
       QA.toast(err.message, 'error');
+    } finally {
+      b.disabled = false;
     }
   });
 

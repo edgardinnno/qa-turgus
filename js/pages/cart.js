@@ -3,6 +3,7 @@
   'use strict';
   const QA = window.QA;
   const $ = (id) => document.getElementById(id);
+  let cart = { items: [], promo: null };
 
   function itemHtml(item) {
     const name = QA.escapeHtml(item.name);
@@ -26,16 +27,17 @@
   }
 
   function render() {
-    const cart = QA.getCart();
     const empty = cart.items.length === 0;
+    $('cart-loading').hidden = true;
     $('cart-empty').hidden = !empty;
     $('cart-content').hidden = empty;
+    const count = cart.items.reduce((s, i) => s + i.qty, 0);
+    $('items-count').textContent = empty ? '' : `${count} ${QA.plural(count, ['prekė', 'prekės', 'prekių'])}`;
     if (empty) return;
 
     $('cart-items').innerHTML = cart.items.map(itemHtml).join('');
     const t = QA.computeTotals(cart, 'courier');
     $('totals').innerHTML = QA.totalsHtml(t);
-    $('items-count').textContent = `${QA.cartCount()} ${QA.plural(QA.cartCount(), ['prekė', 'prekės', 'prekių'])}`;
 
     const free = $('free-shipping');
     if (t.shipping === 0) {
@@ -52,36 +54,40 @@
     if (cart.promo) {
       applied.innerHTML = `
         <span class="promo-chip${t.promoValid ? '' : ' invalid'}">
-          <span data-testid="promo-applied-code">${QA.escapeHtml(cart.promo)}</span>
+          <span data-testid="promo-applied-code">${QA.escapeHtml(cart.promo.code)}</span>
           <span class="small">${QA.escapeHtml(t.promoValid ? t.promoLabel : t.promoNote)}</span>
           <button type="button" class="icon-btn" id="remove-promo" aria-label="Pašalinti nuolaidos kodą" data-testid="promo-remove">✕</button>
         </span>`;
       applied.hidden = false;
       $('promo-form').hidden = true;
-      $('remove-promo').addEventListener('click', () => {
-        QA.removePromo();
+      $('remove-promo').addEventListener('click', () => run(async () => {
+        cart = await QA.removePromo();
         QA.toast('Nuolaidos kodas pašalintas.', 'info');
-        render();
-      });
+      }));
     } else {
       applied.hidden = true;
       $('promo-form').hidden = false;
     }
   }
 
-  function changeQty(key, qty, input) {
+  // Vykdo krepšelio veiksmą: kol laukiama serverio, sąrašas pažymimas „užimtu“.
+  async function run(action) {
+    const list = $('cart-content');
+    list.setAttribute('aria-busy', 'true');
+    list.classList.add('busy');
     try {
-      QA.setCartQty(key, qty);
+      await action();
     } catch (err) {
       QA.toast(err.message, 'error');
-      if (input) input.value = QA.getCart().items.find((i) => i.key === key).qty;
-      return;
+    } finally {
+      list.removeAttribute('aria-busy');
+      list.classList.remove('busy');
+      render();
     }
-    render();
   }
 
   async function removeItem(key) {
-    const item = QA.getCart().items.find((i) => i.key === key);
+    const item = cart.items.find((i) => i.key === key);
     const ok = await QA.confirmDialog({
       title: 'Pašalinti prekę?',
       message: `Ar tikrai norite pašalinti „${item.name}“ iš krepšelio?`,
@@ -89,34 +95,35 @@
       danger: true,
     });
     if (!ok) return;
-    QA.removeFromCart(key);
-    QA.toast(`„${item.name}“ pašalinta iš krepšelio.`, 'info');
-    render();
+    await run(async () => {
+      cart = await QA.removeFromCart(key);
+      QA.toast(`„${item.name}“ pašalinta iš krepšelio.`, 'info');
+    });
   }
 
   $('cart-items').addEventListener('click', (e) => {
     const btn = e.target.closest('[data-action]');
-    if (!btn) return;
-    const row = btn.closest('[data-key]');
-    const key = row.dataset.key;
-    const item = QA.getCart().items.find((i) => i.key === key);
-    if (btn.dataset.action === 'inc') changeQty(key, item.qty + 1);
-    if (btn.dataset.action === 'dec') changeQty(key, item.qty - 1);
+    if (!btn || btn.disabled) return;
+    const key = btn.closest('[data-key]').dataset.key;
+    const item = cart.items.find((i) => i.key === key);
+    if (btn.dataset.action === 'inc') run(async () => { cart = await QA.setCartQty(key, item.qty + 1); });
+    if (btn.dataset.action === 'dec') run(async () => { cart = await QA.setCartQty(key, item.qty - 1); });
     if (btn.dataset.action === 'remove') removeItem(key);
   });
 
   $('cart-items').addEventListener('change', (e) => {
     if (e.target.dataset.testid !== 'cart-item-qty') return;
     const key = e.target.closest('[data-key]').dataset.key;
-    changeQty(key, Number(e.target.value), e.target);
+    run(async () => { cart = await QA.setCartQty(key, Number(e.target.value)); });
   });
 
   // Specialiai naudojamas naršyklės confirm() – praktikai su page.on('dialog').
   $('clear-cart').addEventListener('click', () => {
     if (!window.confirm('Ar tikrai norite išvalyti visą krepšelį?')) return;
-    QA.clearCart();
-    QA.toast('Krepšelis išvalytas.', 'info');
-    render();
+    run(async () => {
+      cart = await QA.clearCart();
+      QA.toast('Krepšelis išvalytas.', 'info');
+    });
   });
 
   $('promo-form').addEventListener('submit', async (e) => {
@@ -127,11 +134,12 @@
     QA.setLoading(btn, true, 'Tikrinama…');
     try {
       const promo = await QA.applyPromo(input.value);
+      cart = await QA.getCart();
       input.value = '';
       QA.toast(`Nuolaidos kodas ${promo.code} pritaikytas: ${promo.label}.`);
       render();
     } catch (err) {
-      QA.setFieldError(input, err.message);
+      QA.setFieldError(input, (err.details && err.details.code) || err.message);
     } finally {
       QA.setLoading(btn, false);
     }
@@ -146,10 +154,22 @@
     location.href = 'checkout.html';
   });
 
-  // Atnaujiname, jei krepšelis pasikeitė kitame skirtuke.
-  window.addEventListener('storage', (e) => {
-    if (e.key === 'qa_carts') render();
+  // Atnaujiname, jei svečio krepšelis pasikeitė kitame skirtuke.
+  window.addEventListener('storage', async (e) => {
+    if (e.key === 'qa_guest_cart' && !QA.currentUser()) {
+      cart = await QA.getCart();
+      render();
+    }
   });
 
-  render();
+  (async () => {
+    try {
+      cart = await QA.getCart();
+      render();
+    } catch (err) {
+      $('cart-loading').hidden = true;
+      $('cart-error').textContent = err.message;
+      $('cart-error').hidden = false;
+    }
+  })();
 })();

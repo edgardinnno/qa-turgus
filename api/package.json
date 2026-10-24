@@ -1,0 +1,23 @@
+{
+  "name": "qa-turgus-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "QA Turgus REST API (Cloudflare Workers + D1)",
+  "type": "module",
+  "scripts": {
+    "seed": "node scripts/generate-seed.mjs",
+    "db:migrate:local": "wrangler d1 migrations apply qa-turgus-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply qa-turgus-db --remote",
+    "dev": "npm run db:migrate:local && wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "^4.13.13"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261024.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.152.0"
+  }
+}

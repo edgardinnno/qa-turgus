@@ -3,16 +3,12 @@
   'use strict';
   const QA = window.QA;
   if (!QA.requireAuth()) return;
-  if (!QA.getCart().items.length) {
-    QA.flash('Krepšelis tuščias – pirmiausia įsidėkite prekių.', 'info');
-    location.replace('cart.html');
-    return;
-  }
 
   const $ = (id) => document.getElementById(id);
   const form = $('checkout-form');
   const user = QA.currentUser();
   let step = 1;
+  let cart = { items: [], promo: null };
 
   // --- Pradinės reikšmės ---
   $('ship-first-name').value = user.firstName || '';
@@ -151,7 +147,6 @@
 
   // --- Suvestinė ---
   function renderSummary() {
-    const cart = QA.getCart();
     $('summary-items').innerHTML = cart.items.map((i) => `
       <li class="mini-item" data-testid="summary-item">
         ${QA.productImage(i, 'pimg-xs')}
@@ -167,17 +162,22 @@
     });
   }
 
+  // Užsakymo duomenys tokiu pavidalu, kokio tikisi POST /api/orders.
   function collect() {
     const method = deliveryMethod();
-    const delivery = { method, label: QA.SHIPPING[method].label, eta: QA.SHIPPING[method].eta };
+    const delivery = { method };
     if (method === 'parcel') delivery.location = $('parcel-locker').value;
     if (method === 'pickup') delivery.location = $('pickup-store').value;
 
     const pay = paymentMethod();
     const payment = { method: pay };
     if (pay === 'card') {
-      payment.number = $('card-number').value.replace(/\s/g, '');
-      payment.holder = $('card-name').value.trim();
+      payment.card = {
+        holder: $('card-name').value.trim(),
+        number: $('card-number').value.replace(/\s/g, ''),
+        expiry: $('card-expiry').value.trim(),
+        cvc: $('card-cvc').value.trim(),
+      };
     }
     if (pay === 'bank') payment.bank = $('bank-select').value;
 
@@ -200,8 +200,10 @@
   function renderReview() {
     const d = collect();
     const a = d.address;
+    d.delivery.label = QA.SHIPPING[d.delivery.method].label;
+    d.delivery.eta = QA.SHIPPING[d.delivery.method].eta;
     let paymentText = QA.PAYMENT_LABELS[d.payment.method];
-    if (d.payment.method === 'card') paymentText += ` •••• ${d.payment.number.slice(-4)}`;
+    if (d.payment.method === 'card') paymentText += ` •••• ${d.payment.card.number.slice(-4)}`;
     if (d.payment.method === 'bank') paymentText += ` (${d.payment.bank})`;
     const block = (title, testid, goto, body) => `
       <div class="review-block" data-testid="${testid}">
@@ -218,6 +220,22 @@
     ].join('');
   }
 
+  // Serverio klaidų laukai (error.details) → formos laukai.
+  const SERVER_FIELDS = {
+    'address.firstName': 'ship-first-name',
+    'address.lastName': 'ship-last-name',
+    'address.phone': 'ship-phone',
+    'address.street': 'ship-address',
+    'address.city': 'ship-city',
+    'address.postal': 'ship-postal',
+    'delivery.location': 'parcel-locker',
+    'payment.card.holder': 'card-name',
+    'payment.card.number': 'card-number',
+    'payment.card.expiry': 'card-expiry',
+    'payment.card.cvc': 'card-cvc',
+    'payment.bank': 'bank-select',
+  };
+
   async function submitOrder() {
     const btn = $('place-order');
     const error = $('checkout-error');
@@ -228,7 +246,9 @@
       const order = await QA.placeOrder(collect());
       location.href = `order.html?id=${order.id}&new=1`;
     } catch (err) {
-      error.textContent = err.message;
+      QA.showServerErrors(err, SERVER_FIELDS);
+      const fieldErrors = Object.values(err.details || {});
+      error.textContent = fieldErrors.length ? `${err.message} ${fieldErrors.join(' ')}` : err.message;
       error.hidden = false;
       error.scrollIntoView({ behavior: 'smooth', block: 'center' });
       QA.setLoading(btn, false);
@@ -251,8 +271,23 @@
   form.querySelectorAll('input[name="delivery"]').forEach((r) => r.addEventListener('change', onDeliveryChange));
   form.querySelectorAll('input[name="payment"]').forEach((r) => r.addEventListener('change', onPaymentChange));
 
-  onDeliveryChange();
-  onPaymentChange();
-  renderSummary();
-  $('checkout-content').hidden = false;
+  (async () => {
+    try {
+      cart = await QA.getCart();
+    } catch (err) {
+      $('checkout-loading').hidden = true;
+      QA.toast(err.message, 'error');
+      return;
+    }
+    if (!cart.items.length) {
+      QA.flash('Krepšelis tuščias – pirmiausia įsidėkite prekių.', 'info');
+      location.replace('cart.html');
+      return;
+    }
+    onDeliveryChange();
+    onPaymentChange();
+    renderSummary();
+    $('checkout-loading').hidden = true;
+    $('checkout-content').hidden = false;
+  })();
 })();

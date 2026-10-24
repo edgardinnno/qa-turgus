@@ -6,6 +6,7 @@
   <title>Užsakymas | QA Turgus</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f46e5'/%3E%3Ctext x='32' y='42' font-family='Arial' font-weight='700' font-size='28' fill='white' text-anchor='middle'%3EQA%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="css/styles.css">
+  <script src="js/config.js" defer></script>
   <script src="js/core.js" defer></script>
   <script src="js/pages/order.js" defer></script>
 </head>
@@ -14,6 +15,7 @@
   <header id="site-header" class="site-header"></header>
 
   <main id="main" class="container page narrow">
+    <div id="loading" class="loading" data-testid="loading"><span class="spinner" aria-hidden="true"></span> Kraunamas užsakymas…</div>
     <div id="not-found" class="empty-state" data-testid="order-not-found" hidden>
       <div class="empty-icon" aria-hidden="true">📦</div>
       <h1>Užsakymas nerastas</h1>

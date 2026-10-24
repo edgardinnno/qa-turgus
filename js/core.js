@@ -1,11 +1,10 @@
 /*
  * QA Turgus – bendra visų puslapių logika.
  *
- * „Serveris“ imituojamas naršyklėje:
- *  - vartotojai, krepšeliai, užsakymai ir atsiliepimai saugomi localStorage;
- *  - sesijos žetonas saugomas slapuke (cookie) „qa_session“;
- *  - prekės kraunamos per fetch() iš data/products.json;
- *  - visos „API“ užklausos turi dirbtinį vėlavimą (kaip tikrame tinkle).
+ * Duomenys gyvena serveryje (REST API, žr. api/ ir /docs):
+ *  - prisijungus API grąžina token, jis saugomas slapuke „qa_session“ ir siunčiamas
+ *    antraštėje „Authorization: Bearer <token>“;
+ *  - neprisijungusio vartotojo krepšelis laikomas localStorage ir prisijungus perkeliamas į serverį.
  */
 (function () {
   'use strict';
@@ -13,17 +12,12 @@
   // ---------------------------------------------------------------------------
   // Konstantos
   // ---------------------------------------------------------------------------
-  const KEYS = {
-    seeded: 'qa_seeded_v1',
-    users: 'qa_users',
-    sessions: 'qa_sessions',
-    carts: 'qa_carts',
-    orders: 'qa_orders',
-    reviews: 'qa_reviews',
-  };
+  const API_URL = (window.QA_CONFIG && window.QA_CONFIG.API_URL) || 'http://localhost:8787/api';
+  const SESSION_COOKIE = 'qa_session';
+  const USER_KEY = 'qa_user';
+  const GUEST_CART_KEY = 'qa_guest_cart';
   const CONSENT_KEY = 'qa_cookie_consent';
   const FLASH_KEY = 'qa_flash';
-  const SESSION_COOKIE = 'qa_session';
 
   const CATEGORIES = {
     elektronika: 'Elektronika',
@@ -31,29 +25,6 @@
     namai: 'Namai',
     sportas: 'Sportas',
     knygos: 'Knygos',
-  };
-
-  const SEED_PASSWORD = 'Slaptas123!';
-  const SEED_USERS = [
-    { email: 'standartinis@test.lt', firstName: 'Jonas', lastName: 'Jonaitis', type: 'standard' },
-    { email: 'uzblokuotas@test.lt', firstName: 'Petras', lastName: 'Petraitis', type: 'locked' },
-    { email: 'letas@test.lt', firstName: 'Rasa', lastName: 'Lėtaitė', type: 'slow' },
-    { email: 'klaidingas@test.lt', firstName: 'Klaidas', lastName: 'Klaidutis', type: 'error' },
-  ].map((u) => ({
-    ...u,
-    password: SEED_PASSWORD,
-    phone: '+37060000000',
-    birthDate: '1990-01-15',
-    country: 'LT',
-    newsletter: false,
-    createdAt: '2026-01-05T09:00:00.000Z',
-  }));
-
-  const PROMOS = {
-    PLAYWRIGHT10: { type: 'percent', value: 10, label: '-10 % visam krepšeliui' },
-    DIDELIS20: { type: 'percent', value: 20, min: 100, label: '-20 % užsakymams nuo 100 €' },
-    NEMOKAMAS: { type: 'shipping', label: 'Nemokamas pristatymas' },
-    SENAS2024: { expired: true },
   };
 
   const FREE_SHIPPING_FROM = 50;
@@ -76,17 +47,10 @@
   const PAYMENT_LABELS = { card: 'Mokėjimo kortelė', bank: 'Bankinis pavedimas', cash: 'Grynaisiais atsiimant' };
   const ORDER_STATUS = { processing: 'Apdorojamas', cancelled: 'Atšauktas' };
 
-  // Testinės kortelės: praeina Luhn patikrą, bet „bankas“ jas atmeta.
-  const DECLINED_CARDS = {
-    '4000000000000002': 'Kortelė atmesta. Pabandykite kitą mokėjimo kortelę.',
-    '4000000000009995': 'Mokėjimas atmestas: kortelėje nepakanka lėšų.',
-  };
-
   // ---------------------------------------------------------------------------
   // Pagalbinės funkcijos
   // ---------------------------------------------------------------------------
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  const rand = (min, max) => Math.round(min + Math.random() * (max - min));
   const round2 = (n) => Math.round(n * 100) / 100;
 
   function money(n) {
@@ -119,9 +83,6 @@
     return withTime ? `${date} ${pad(d.getHours())}:${pad(d.getMinutes())}` : date;
   }
 
-  // ---------------------------------------------------------------------------
-  // Saugykla
-  // ---------------------------------------------------------------------------
   function read(key, fallback) {
     try {
       const raw = localStorage.getItem(key);
@@ -133,23 +94,6 @@
 
   function write(key, value) {
     localStorage.setItem(key, JSON.stringify(value));
-  }
-
-  function seed(force) {
-    if (!force && localStorage.getItem(KEYS.seeded)) return;
-    write(KEYS.users, SEED_USERS);
-    write(KEYS.sessions, {});
-    write(KEYS.carts, {});
-    write(KEYS.orders, []);
-    write(KEYS.reviews, {});
-    localStorage.setItem(KEYS.seeded, '1');
-  }
-
-  function resetAll() {
-    Object.values(KEYS).forEach((k) => localStorage.removeItem(k));
-    sessionStorage.removeItem(FLASH_KEY);
-    deleteCookie(SESSION_COOKIE);
-    seed(true);
   }
 
   // ---------------------------------------------------------------------------
@@ -178,139 +122,159 @@
   const on = (name, fn) => bus.addEventListener(name, (e) => fn(e.detail));
 
   // ---------------------------------------------------------------------------
+  // API klientas
+  // ---------------------------------------------------------------------------
+  class ApiError extends Error {
+    constructor(message, status, code, details) {
+      super(message);
+      this.status = status;
+      this.code = code;
+      this.details = details || {};
+    }
+  }
+
+  async function api(path, opts) {
+    const o = opts || {};
+    const headers = { Accept: 'application/json' };
+    if (o.body !== undefined) headers['Content-Type'] = 'application/json';
+    const token = getCookie(SESSION_COOKIE);
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    let res;
+    try {
+      res = await fetch(API_URL + path, {
+        method: o.method || 'GET',
+        headers,
+        body: o.body === undefined ? undefined : JSON.stringify(o.body),
+      });
+    } catch (e) {
+      throw new ApiError('Nepavyko susisiekti su serveriu. Patikrinkite interneto ryšį.', 0, 'NETWORK_ERROR');
+    }
+    if (res.status === 204) return null;
+    const data = await res.json().catch(() => null);
+    if (res.ok) return data;
+
+    const err = (data && data.error) || {};
+    // Token nebegalioja – išvalome sesiją ir siunčiame prisijungti.
+    if (res.status === 401 && token) {
+      clearSession();
+      flash('Sesija baigėsi. Prisijunkite iš naujo.', 'info');
+      location.replace('login.html?redirect=' + encodeURIComponent(currentPage()));
+    }
+    throw new ApiError(err.message || `Serverio klaida (HTTP ${res.status}).`, res.status, err.code, err.details);
+  }
+
+  // ---------------------------------------------------------------------------
   // Autentifikacija
   // ---------------------------------------------------------------------------
-  const allUsers = () => read(KEYS.users, []);
-
-  function findUser(email) {
-    const e = String(email || '').trim().toLowerCase();
-    return allUsers().find((u) => u.email === e) || null;
-  }
-
-  function saveUser(user) {
-    const list = allUsers();
-    const i = list.findIndex((u) => u.email === user.email);
-    if (i >= 0) list[i] = user;
-    else list.push(user);
-    write(KEYS.users, list);
-  }
-
-  function publicUser(u) {
-    const copy = { ...u };
-    delete copy.password;
-    return copy;
-  }
-
   function currentUser() {
-    const token = getCookie(SESSION_COOKIE);
-    if (!token) return null;
-    const email = read(KEYS.sessions, {})[token];
-    const user = email && findUser(email);
-    if (!user || user.type === 'locked') return null;
-    return publicUser(user);
+    return getCookie(SESSION_COOKIE) ? read(USER_KEY, null) : null;
   }
 
-  // Vėlavimas priklauso nuo vartotojo: „lėtas“ vartotojas viską gauna po 2,5–4 s.
-  function latency(range, user) {
-    const u = user === undefined ? currentUser() : user;
-    if (u && u.type === 'slow') return wait(rand(2500, 4000));
-    const r = range || [250, 700];
-    return wait(rand(r[0], r[1]));
+  function cacheUser(user) {
+    write(USER_KEY, user);
+  }
+
+  function clearSession() {
+    deleteCookie(SESSION_COOKIE);
+    localStorage.removeItem(USER_KEY);
+    cartCache = null;
   }
 
   async function login(email, password, remember) {
-    const user = findUser(email);
-    await latency([400, 900], user);
-    if (!user || user.password !== password) {
-      throw new Error('Neteisingas el. paštas arba slaptažodis.');
-    }
-    if (user.type === 'locked') {
-      throw new Error('Ši paskyra užblokuota. Susisiekite su administratoriumi.');
-    }
-    const token = 'sess_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-    const sessions = read(KEYS.sessions, {});
-    sessions[token] = user.email;
-    write(KEYS.sessions, sessions);
-    setCookie(SESSION_COOKIE, token, remember ? 7 : 0);
-    mergeGuestCart(user.email);
-    return publicUser(user);
+    const data = await api('/auth/login', { method: 'POST', body: { email: email.trim(), password, remember: Boolean(remember) } });
+    setCookie(SESSION_COOKIE, data.token, remember ? 7 : 0);
+    cacheUser(data.user);
+    await mergeGuestCart();
+    return data.user;
   }
 
-  function logout() {
-    const token = getCookie(SESSION_COOKIE);
-    if (token) {
-      const sessions = read(KEYS.sessions, {});
-      delete sessions[token];
-      write(KEYS.sessions, sessions);
-    }
-    deleteCookie(SESSION_COOKIE);
+  async function logout() {
+    try {
+      await api('/auth/logout', { method: 'POST' });
+    } catch (e) { /* vis tiek atsijungiame lokaliai */ }
+    clearSession();
   }
 
   async function register(data) {
-    await latency([600, 1200], null);
-    const email = data.email.trim().toLowerCase();
-    if (findUser(email)) throw new Error('Vartotojas su šiuo el. pašto adresu jau užregistruotas.');
-    const user = { ...data, email, type: 'standard', createdAt: new Date().toISOString() };
-    saveUser(user);
-    return publicUser(user);
+    return (await api('/auth/register', { method: 'POST', body: data })).user;
+  }
+
+  async function refreshUser() {
+    if (!getCookie(SESSION_COOKIE)) return null;
+    const { user } = await api('/users/me');
+    cacheUser(user);
+    return user;
   }
 
   async function updateProfile(changes) {
-    const me = currentUser();
-    if (!me) throw new Error('Sesija baigėsi. Prisijunkite iš naujo.');
-    await latency();
-    const user = findUser(me.email);
-    Object.assign(user, changes);
-    saveUser(user);
-    return publicUser(user);
+    const { user } = await api('/users/me', { method: 'PATCH', body: changes });
+    cacheUser(user);
+    return user;
   }
 
-  async function changePassword(current, next) {
-    const me = currentUser();
-    if (!me) throw new Error('Sesija baigėsi. Prisijunkite iš naujo.');
-    await latency();
-    const user = findUser(me.email);
-    if (user.password !== current) throw new Error('Dabartinis slaptažodis neteisingas.');
-    if (current === next) throw new Error('Naujas slaptažodis turi skirtis nuo dabartinio.');
-    user.password = next;
-    saveUser(user);
+  async function changePassword(currentPassword, newPassword) {
+    await api('/users/me/password', { method: 'PUT', body: { currentPassword, newPassword } });
   }
 
   // ---------------------------------------------------------------------------
-  // Krepšelis (kiekvienas vartotojas turi savo; neprisijungęs – „guest“)
+  // Krepšelis: prisijungus – serveryje, neprisijungus – localStorage.
+  // Viduje visada naudojama ta pati forma: { items: [{ key, productId, …, qty }], promo }
   // ---------------------------------------------------------------------------
-  function cartOwner() {
-    const u = currentUser();
-    return u ? u.email : 'guest';
+  let cartCache = null;
+
+  function fromServer(c) {
+    return {
+      items: c.items.map((i) => ({
+        key: String(i.id),
+        productId: i.productId,
+        name: i.name,
+        price: i.price,
+        image: i.image,
+        hue: i.hue,
+        stock: i.stock,
+        size: i.size,
+        color: i.color,
+        qty: i.quantity,
+      })),
+      promo: c.promo,
+    };
   }
 
-  function getCart(owner) {
-    const carts = read(KEYS.carts, {});
-    return carts[owner || cartOwner()] || { items: [], promo: null };
-  }
+  const readGuestCart = () => read(GUEST_CART_KEY, { items: [], promo: null });
 
-  function saveCart(cart, owner) {
-    const carts = read(KEYS.carts, {});
-    carts[owner || cartOwner()] = cart;
-    write(KEYS.carts, carts);
+  function setCart(cart, guest) {
+    if (guest) write(GUEST_CART_KEY, cart);
+    cartCache = cart;
     emit('cart:change', cart);
+    return cart;
   }
 
-  const itemKey = (id, opts) => [id, opts.size || '', opts.color || ''].join('|');
+  async function getCart() {
+    if (currentUser()) return setCart(fromServer(await api('/cart')));
+    return setCart(readGuestCart(), false);
+  }
+
   const qtyOfProduct = (cart, productId, exceptKey) => cart.items
     .filter((i) => i.productId === productId && i.key !== exceptKey)
     .reduce((sum, i) => sum + i.qty, 0);
 
-  function addToCart(product, qty, opts) {
+  async function addToCart(product, qty, opts) {
     const options = opts || {};
     const amount = qty || 1;
-    const cart = getCart();
+    if (currentUser()) {
+      const body = { productId: product.id, quantity: amount };
+      if (options.size) body.size = options.size;
+      if (options.color) body.color = options.color;
+      return setCart(fromServer(await api('/cart/items', { method: 'POST', body })));
+    }
+    const cart = readGuestCart();
     if (product.stock <= 0) throw new Error('Ši prekė išparduota.');
     const already = qtyOfProduct(cart, product.id);
     if (already + amount > product.stock) {
       throw new Error(`Sandėlyje yra tik ${product.stock} vnt. Krepšelyje jau turite ${already} vnt.`);
     }
-    const key = itemKey(product.id, options);
+    const key = [product.id, options.size || '', options.color || ''].join('|');
     const existing = cart.items.find((i) => i.key === key);
     if (existing) {
       existing.qty += amount;
@@ -328,88 +292,97 @@
         qty: amount,
       });
     }
-    saveCart(cart);
-    return cart;
+    return setCart(cart, true);
   }
 
-  function setCartQty(key, qty) {
-    const cart = getCart();
+  async function setCartQty(key, qty) {
+    if (!Number.isInteger(qty) || qty < 1) throw new Error('Kiekis turi būti ne mažesnis nei 1.');
+    if (currentUser()) {
+      return setCart(fromServer(await api(`/cart/items/${key}`, { method: 'PATCH', body: { quantity: qty } })));
+    }
+    const cart = readGuestCart();
     const item = cart.items.find((i) => i.key === key);
     if (!item) throw new Error('Prekė krepšelyje nerasta.');
-    if (!Number.isInteger(qty) || qty < 1) throw new Error('Kiekis turi būti ne mažesnis nei 1.');
-    const others = qtyOfProduct(cart, item.productId, key);
-    if (others + qty > item.stock) {
+    if (qtyOfProduct(cart, item.productId, key) + qty > item.stock) {
       throw new Error(`Sandėlyje yra tik ${item.stock} vnt. šios prekės.`);
     }
     item.qty = qty;
-    saveCart(cart);
-    return cart;
+    return setCart(cart, true);
   }
 
-  function removeFromCart(key) {
-    const cart = getCart();
+  async function removeFromCart(key) {
+    if (currentUser()) return setCart(fromServer(await api(`/cart/items/${key}`, { method: 'DELETE' })));
+    const cart = readGuestCart();
     cart.items = cart.items.filter((i) => i.key !== key);
     if (!cart.items.length) cart.promo = null;
-    saveCart(cart);
-    return cart;
+    return setCart(cart, true);
   }
 
-  function clearCart() {
-    saveCart({ items: [], promo: null });
+  async function clearCart() {
+    if (currentUser()) {
+      await api('/cart', { method: 'DELETE' });
+      return setCart({ items: [], promo: null });
+    }
+    return setCart({ items: [], promo: null }, true);
   }
 
   function cartCount() {
-    return getCart().items.reduce((sum, i) => sum + i.qty, 0);
-  }
-
-  // Prisijungus svečio krepšelis sujungiamas su vartotojo krepšeliu.
-  function mergeGuestCart(email) {
-    const carts = read(KEYS.carts, {});
-    const guest = carts.guest;
-    if (!guest || !guest.items.length) return;
-    const target = carts[email] || { items: [], promo: null };
-    guest.items.forEach((g) => {
-      const existing = target.items.find((i) => i.key === g.key);
-      if (existing) existing.qty = Math.min(existing.qty + g.qty, g.stock);
-      else target.items.push(g);
-    });
-    if (!target.promo && guest.promo) target.promo = guest.promo;
-    carts[email] = target;
-    delete carts.guest;
-    write(KEYS.carts, carts);
+    return cartCache ? cartCache.items.reduce((sum, i) => sum + i.qty, 0) : 0;
   }
 
   async function applyPromo(code) {
-    await latency([300, 700]);
-    const c = String(code || '').trim().toUpperCase();
-    if (!c) throw new Error('Įveskite nuolaidos kodą.');
-    const promo = PROMOS[c];
-    if (!promo) throw new Error('Toks nuolaidos kodas neegzistuoja.');
-    if (promo.expired) throw new Error('Šio nuolaidos kodo galiojimas pasibaigęs.');
-    const cart = getCart();
-    if (cart.promo === c) throw new Error('Šis kodas jau pritaikytas.');
-    const subtotal = cart.items.reduce((s, i) => s + i.price * i.qty, 0);
-    if (promo.min && subtotal < promo.min) throw new Error(`Kodas galioja užsakymams nuo ${money(promo.min)}.`);
-    cart.promo = c;
-    saveCart(cart);
-    return { code: c, ...promo };
+    const c = String(code || '').trim();
+    if (!c) throw new ApiError('Įveskite nuolaidos kodą.', 422, 'VALIDATION_ERROR');
+    if (currentUser()) {
+      const cart = setCart(fromServer(await api('/cart/promo', { method: 'POST', body: { code: c } })));
+      return cart.promo;
+    }
+    const cart = readGuestCart();
+    const subtotal = round2(cart.items.reduce((s, i) => s + i.price * i.qty, 0));
+    const { promo } = await api('/promo-codes/validate', { method: 'POST', body: { code: c, subtotal } });
+    if (cart.promo && cart.promo.code === promo.code) throw new ApiError('Šis kodas jau pritaikytas.', 409, 'PROMO_ALREADY_APPLIED');
+    cart.promo = promo;
+    setCart(cart, true);
+    return promo;
   }
 
-  function removePromo() {
-    const cart = getCart();
+  async function removePromo() {
+    if (currentUser()) return setCart(fromServer(await api('/cart/promo', { method: 'DELETE' })));
+    const cart = readGuestCart();
     cart.promo = null;
-    saveCart(cart);
+    return setCart(cart, true);
   }
 
+  // Prisijungus svečio krepšelis perkeliamas į serverį (prekės, kurių nebėra, praleidžiamos).
+  async function mergeGuestCart() {
+    const guest = readGuestCart();
+    if (!guest.items.length) return;
+    for (const item of guest.items) {
+      const body = { productId: item.productId, quantity: item.qty };
+      if (item.size) body.size = item.size;
+      if (item.color) body.color = item.color;
+      try {
+        await api('/cart/items', { method: 'POST', body });
+      } catch (e) { /* pvz. nepakanka sandėlyje */ }
+    }
+    if (guest.promo) {
+      try {
+        await api('/cart/promo', { method: 'POST', body: { code: guest.promo.code } });
+      } catch (e) { /* kodas jau pritaikytas arba nebegalioja */ }
+    }
+    localStorage.removeItem(GUEST_CART_KEY);
+  }
+
+  // Ta pati logika kaip serveryje (api/src/lib/shop.ts) – kad sumos matytųsi iškart.
   function computeTotals(cart, method) {
     const shippingMethod = SHIPPING[method] ? method : 'courier';
     const subtotal = round2(cart.items.reduce((s, i) => s + i.price * i.qty, 0));
-    const promo = cart.promo ? PROMOS[cart.promo] : null;
-    let promoValid = Boolean(promo && !promo.expired);
+    const promo = cart.promo || null;
+    let promoValid = Boolean(promo);
     let promoNote = '';
-    if (promoValid && promo.min && subtotal < promo.min) {
+    if (promo && promo.min && subtotal < promo.min) {
       promoValid = false;
-      promoNote = `Kodas ${cart.promo} negalioja: suma mažesnė nei ${money(promo.min)}.`;
+      promoNote = `Kodas ${promo.code} negalioja: suma mažesnė nei ${money(promo.min)}.`;
     }
     const discount = promoValid && promo.type === 'percent' ? round2((subtotal * promo.value) / 100) : 0;
     const afterDiscount = round2(subtotal - discount);
@@ -422,7 +395,7 @@
       shipping,
       total,
       vat: round2(total - total / 1.21),
-      promoCode: cart.promo,
+      promoCode: promo && promo.code,
       promoLabel: promo && promo.label,
       promoValid,
       promoNote,
@@ -434,110 +407,61 @@
   // ---------------------------------------------------------------------------
   // Prekės ir atsiliepimai
   // ---------------------------------------------------------------------------
-  async function fetchProducts() {
-    await latency();
-    let res;
-    try {
-      res = await fetch('data/products.json', { cache: 'no-store' });
-    } catch (e) {
-      throw new Error('Nepavyko įkelti prekių. Patikrinkite interneto ryšį.');
-    }
-    if (!res.ok) throw new Error(`Nepavyko įkelti prekių (HTTP ${res.status}).`);
-    return res.json();
+  async function fetchProducts(params) {
+    const qs = new URLSearchParams();
+    Object.entries(params || {}).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '' && v !== false) qs.set(k, String(v));
+    });
+    const query = qs.toString();
+    return api('/products' + (query ? '?' + query : ''));
   }
 
   async function fetchProduct(id) {
-    const products = await fetchProducts();
-    return { product: products.find((p) => p.id === id) || null, products };
+    try {
+      return (await api(`/products/${encodeURIComponent(id || '')}`)).product;
+    } catch (e) {
+      if (e.status === 404) return null;
+      throw e;
+    }
   }
 
-  function getReviews(product) {
-    const local = read(KEYS.reviews, {})[product.id] || [];
-    return [...local, ...(product.reviews || [])];
+  async function getReviews(productId) {
+    const { items } = await api(`/products/${encodeURIComponent(productId)}/reviews`);
+    return items.map((r) => ({ ...r, date: formatDate(r.createdAt) }));
   }
 
   async function addReview(productId, rating, text) {
-    const user = currentUser();
-    if (!user) throw new Error('Norėdami rašyti atsiliepimą, prisijunkite.');
-    await latency([300, 600]);
-    const all = read(KEYS.reviews, {});
-    const review = {
-      author: `${user.firstName} ${user.lastName.charAt(0)}.`,
-      rating,
-      text,
-      date: formatDate(new Date().toISOString()),
-    };
-    all[productId] = [review, ...(all[productId] || [])];
-    write(KEYS.reviews, all);
-    return review;
+    return (await api(`/products/${encodeURIComponent(productId)}/reviews`, { method: 'POST', body: { rating, text } })).review;
   }
 
   // ---------------------------------------------------------------------------
   // Užsakymai
   // ---------------------------------------------------------------------------
   async function placeOrder(details) {
-    const user = currentUser();
-    if (!user) throw new Error('Sesija baigėsi. Prisijunkite iš naujo.');
-    await latency([900, 1600]);
-    if (user.type === 'error') {
-      throw new Error('Serverio klaida (500). Užsakymo pateikti nepavyko – bandykite vėliau.');
-    }
-    const cart = getCart();
-    if (!cart.items.length) throw new Error('Krepšelis tuščias.');
-    if (details.payment.method === 'card' && DECLINED_CARDS[details.payment.number]) {
-      throw new Error(DECLINED_CARDS[details.payment.number]);
-    }
-    const orders = read(KEYS.orders, []);
-    let id;
-    do {
-      id = 'ORD-' + rand(100000, 999999);
-    } while (orders.some((o) => o.id === id));
-    const payment = { method: details.payment.method };
-    if (payment.method === 'card') payment.last4 = details.payment.number.slice(-4);
-    if (payment.method === 'bank') payment.bank = details.payment.bank;
-    const order = {
-      id,
-      userEmail: user.email,
-      createdAt: new Date().toISOString(),
-      status: 'processing',
-      items: cart.items.map((i) => ({ ...i })),
-      totals: computeTotals(cart, details.delivery.method),
-      address: details.address,
-      delivery: details.delivery,
-      payment,
-    };
-    orders.push(order);
-    write(KEYS.orders, orders);
-    clearCart();
+    const { order } = await api('/orders', { method: 'POST', body: details });
+    setCart({ items: [], promo: null });
     return order;
   }
 
-  function getOrders() {
-    const user = currentUser();
-    if (!user) return [];
-    return read(KEYS.orders, [])
-      .filter((o) => o.userEmail === user.email)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  async function getOrders() {
+    return (await api('/orders')).items;
   }
 
-  function getOrder(id) {
-    return getOrders().find((o) => o.id === id) || null;
+  async function getOrder(id) {
+    try {
+      return (await api(`/orders/${encodeURIComponent(id || '')}`)).order;
+    } catch (e) {
+      if (e.status === 404) return null;
+      throw e;
+    }
   }
 
   async function cancelOrder(id) {
-    await latency();
-    const user = currentUser();
-    const orders = read(KEYS.orders, []);
-    const order = orders.find((o) => o.id === id && user && o.userEmail === user.email);
-    if (!order) throw new Error('Užsakymas nerastas.');
-    if (order.status !== 'processing') throw new Error('Šio užsakymo atšaukti nebegalima.');
-    order.status = 'cancelled';
-    write(KEYS.orders, orders);
-    return order;
+    return (await api(`/orders/${encodeURIComponent(id)}/cancel`, { method: 'POST' })).order;
   }
 
   // ---------------------------------------------------------------------------
-  // Formų validacija
+  // Formų validacija (kliento pusė – serveris tikrina dar kartą)
   // ---------------------------------------------------------------------------
   const validators = {
     required: (msg) => (val) => (val === '' || val === false ? msg || 'Šis laukas privalomas.' : ''),
@@ -615,6 +539,19 @@
       if (firstInvalid) firstInvalid.focus();
       return !firstInvalid;
     };
+  }
+
+  // Serverio grąžintas klaidas (error.details) parodo prie atitinkamų laukų.
+  function showServerErrors(err, fieldMap) {
+    let shown = false;
+    Object.entries((err && err.details) || {}).forEach(([field, msg]) => {
+      const el = fieldMap[field] && document.getElementById(fieldMap[field]);
+      if (el) {
+        setFieldError(el, msg);
+        shown = true;
+      }
+    });
+    return shown;
   }
 
   function passwordStrength(val) {
@@ -802,6 +739,7 @@
   // Antraštė, poraštė, slapukų juosta
   // ---------------------------------------------------------------------------
   const CART_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>';
+  let menuListenersBound = false;
 
   function renderHeader() {
     const el = document.getElementById('site-header');
@@ -852,27 +790,37 @@
   function bindUserMenu(root) {
     const btn = root.querySelector('#user-menu-button');
     const list = root.querySelector('#user-menu-list');
-    const setOpen = (open) => {
-      list.hidden = !open;
-      btn.setAttribute('aria-expanded', String(open));
-    };
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      setOpen(list.hidden);
+      list.hidden = !list.hidden;
+      btn.setAttribute('aria-expanded', String(!list.hidden));
     });
-    document.addEventListener('click', (e) => {
-      if (!list.hidden && !list.contains(e.target)) setOpen(false);
-    });
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !list.hidden) {
-        setOpen(false);
-        btn.focus();
-      }
-    });
-    root.querySelector('[data-testid="logout-button"]').addEventListener('click', () => {
-      logout();
+    root.querySelector('[data-testid="logout-button"]').addEventListener('click', async () => {
+      await logout();
       flash('Sėkmingai atsijungėte.', 'info');
       location.href = 'index.html';
+    });
+    if (menuListenersBound) return;
+    menuListenersBound = true;
+    const close = () => {
+      const l = document.getElementById('user-menu-list');
+      const b = document.getElementById('user-menu-button');
+      if (l && !l.hidden) {
+        l.hidden = true;
+        b.setAttribute('aria-expanded', 'false');
+        return b;
+      }
+      return null;
+    };
+    document.addEventListener('click', (e) => {
+      const l = document.getElementById('user-menu-list');
+      if (l && !l.contains(e.target)) close();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const b = close();
+        if (b) b.focus();
+      }
     });
   }
 
@@ -884,24 +832,32 @@
     badge.hidden = count === 0;
   }
 
+  function resetLocalData() {
+    [USER_KEY, GUEST_CART_KEY, CONSENT_KEY].forEach((k) => localStorage.removeItem(k));
+    sessionStorage.removeItem(FLASH_KEY);
+    deleteCookie(SESSION_COOKIE);
+    cartCache = null;
+  }
+
   function renderFooter() {
     const el = document.getElementById('site-footer');
     if (!el) return;
     el.innerHTML = `
       <div class="container footer-inner">
-        <p>© 2026 QA Turgus – mokomoji parduotuvė testų automatizavimui. Duomenys saugomi tik jūsų naršyklėje, tikri pirkimai nevykdomi.</p>
-        <button type="button" class="btn btn-ghost btn-sm" data-testid="reset-data">Atstatyti demo duomenis</button>
+        <p>© 2026 QA Turgus – mokomoji parduotuvė testų automatizavimui. Tikri pirkimai nevykdomi – neįveskite tikrų duomenų.
+          <a href="${escapeHtml(API_URL.replace(/\/api$/, '/docs'))}" target="_blank" rel="noopener" data-testid="api-docs-link">API dokumentacija</a></p>
+        <button type="button" class="btn btn-ghost btn-sm" data-testid="reset-data">Išvalyti naršyklės duomenis</button>
       </div>`;
     el.querySelector('[data-testid="reset-data"]').addEventListener('click', async () => {
       const ok = await confirmDialog({
-        title: 'Atstatyti demo duomenis?',
-        message: 'Bus ištrinti visi registruoti vartotojai, krepšeliai, užsakymai ir atsiliepimai. Būsite atjungti.',
-        confirmText: 'Atstatyti',
+        title: 'Išvalyti naršyklės duomenis?',
+        message: 'Būsite atjungti, bus išvalytas svečio krepšelis ir slapukų pasirinkimas. Serveryje esantys duomenys (paskyros, užsakymai) neištrinami.',
+        confirmText: 'Išvalyti',
         danger: true,
       });
       if (!ok) return;
-      resetAll();
-      flash('Demo duomenys atstatyti.', 'info');
+      resetLocalData();
+      flash('Naršyklės duomenys išvalyti.', 'info');
       location.href = 'index.html';
     });
   }
@@ -936,15 +892,16 @@
   // Paleidimas
   // ---------------------------------------------------------------------------
   function init() {
-    seed();
     const params = new URLSearchParams(location.search);
     if (params.has('reset')) {
-      resetAll();
+      resetLocalData();
       params.delete('reset');
       const qs = params.toString();
       history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash);
-      flash('Demo duomenys atstatyti.', 'info');
+      flash('Naršyklės duomenys išvalyti.', 'info');
     }
+    // Neprisijungęs vartotojas – rodome svečio krepšelį iškart.
+    if (!currentUser()) cartCache = readGuestCart();
     renderHeader();
     renderFooter();
     bindPasswordToggles();
@@ -952,29 +909,35 @@
     initCookieBanner();
     on('cart:change', updateCartBadge);
     window.addEventListener('storage', (e) => {
-      if (e.key === KEYS.carts) updateCartBadge();
+      if (e.key === GUEST_CART_KEY && !currentUser()) {
+        cartCache = readGuestCart();
+        updateCartBadge();
+      }
     });
+    // Prisijungus – krepšelio ženkliukui pasiimame serverio krepšelį.
+    if (currentUser()) getCart().catch(() => { /* pvz. API nepasiekiamas */ });
   }
 
   window.QA = {
+    API_URL,
     // duomenys
     CATEGORIES, SHIPPING, PARCEL_LOCKERS, STORES, BANKS, COUNTRIES, PAYMENT_LABELS, ORDER_STATUS, FREE_SHIPPING_FROM,
     // pagalbinės
     money, escapeHtml, param, plural, formatDate, wait,
     // įvykiai
     on, emit,
+    // API
+    api, ApiError,
     // autentifikacija
-    currentUser, login, logout, register, updateProfile, changePassword, findUser, requireAuth, safeRedirect,
+    currentUser, login, logout, register, refreshUser, updateProfile, changePassword, requireAuth, safeRedirect,
     // krepšelis
     getCart, addToCart, setCartQty, removeFromCart, clearCart, cartCount, applyPromo, removePromo, computeTotals,
     // prekės, užsakymai
     fetchProducts, fetchProduct, getReviews, addReview, placeOrder, getOrders, getOrder, cancelOrder,
     // formos
-    validators, setFieldError, validateField, bindValidation, bindPasswordMeter, bindPasswordToggles, PASSWORD_RULES,
+    validators, setFieldError, validateField, bindValidation, showServerErrors, bindPasswordMeter, bindPasswordToggles, PASSWORD_RULES,
     // UI
     toast, flash, confirmDialog, setLoading, stars, productImage, optionsText, totalsHtml, renderHeader,
-    // testams
-    resetAll,
   };
 
   init();

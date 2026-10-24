@@ -76,8 +76,24 @@
     if (!validate()) return;
     const btn = $('contact-submit');
     QA.setLoading(btn, true, 'Siunčiama…');
-    await QA.wait(800 + Math.random() * 700);
-    const ticket = 'KT-' + Math.floor(1000 + Math.random() * 9000);
+    let ticket;
+    try {
+      const body = {
+        name: $('contact-name').value.trim(),
+        email: $('contact-email').value.trim(),
+        topic: topic.value,
+        message: message.value.trim(),
+        sendCopy: $('contact-copy').checked,
+      };
+      const order = $('contact-order').value.trim();
+      if (!orderField.hidden && order) body.orderNumber = order;
+      ({ ticket } = await QA.api('/contact-messages', { method: 'POST', body }));
+    } catch (err) {
+      QA.showServerErrors(err, { name: 'contact-name', email: 'contact-email', topic: 'contact-topic', orderNumber: 'contact-order', message: 'contact-message' });
+      QA.toast(err.message, 'error');
+      QA.setLoading(btn, false);
+      return;
+    }
     $('ticket-number').textContent = ticket;
     $('copy-note').hidden = !$('contact-copy').checked;
     form.hidden = true;

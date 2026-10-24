@@ -81,6 +81,7 @@
       QA.toast('Profilis atnaujintas.');
     } catch (err) {
       QA.setLoading(saveBtn, false);
+      QA.showServerErrors(err, { firstName: 'profile-first-name', lastName: 'profile-last-name', phone: 'profile-phone' });
       QA.toast(err.message, 'error');
     }
   });
@@ -106,6 +107,7 @@
       $('pw-new').dispatchEvent(new Event('input'));
       QA.toast('Slaptažodis sėkmingai pakeistas.');
     } catch (err) {
+      QA.showServerErrors(err, { currentPassword: 'pw-current', newPassword: 'pw-new' });
       $('password-error').textContent = err.message;
       $('password-error').hidden = false;
     } finally {
@@ -114,20 +116,26 @@
   });
 
   // --- Užsakymai ---
-  function renderOrders() {
-    const orders = QA.getOrders();
+  async function renderOrders() {
+    let orders;
+    try {
+      orders = await QA.getOrders();
+    } catch (err) {
+      QA.toast(err.message, 'error');
+      return;
+    }
     $('orders-count').textContent = String(orders.length);
     $('orders-empty').hidden = orders.length > 0;
     $('orders-table-wrap').hidden = orders.length === 0;
     $('orders-body').innerHTML = orders.map((o) => {
-      const count = o.items.reduce((s, i) => s + i.qty, 0);
+      const count = o.items.reduce((s, i) => s + i.quantity, 0);
       return `
         <tr data-testid="order-row" data-order-id="${o.id}">
           <td><a href="order.html?id=${o.id}" data-testid="order-link">${o.id}</a></td>
           <td>${QA.formatDate(o.createdAt, true)}</td>
           <td>${count} ${QA.plural(count, ['prekė', 'prekės', 'prekių'])}</td>
           <td data-testid="order-row-total">${QA.money(o.totals.total)}</td>
-          <td><span class="status status-${o.status}" data-testid="order-row-status">${QA.ORDER_STATUS[o.status]}</span></td>
+          <td><span class="status status-${o.status}" data-testid="order-row-status">${o.statusLabel}</span></td>
         </tr>`;
     }).join('');
   }
@@ -137,4 +145,9 @@
   renderOrders();
   showSection();
   $('account-content').hidden = false;
+  // Pasitikriname, ar talpykloje esantys duomenys sutampa su serveriu.
+  QA.refreshUser().then(() => {
+    if (snapshot() === initial) fillProfile();
+    renderGreeting();
+  }).catch(() => { /* 401 tvarkomas QA.api() */ });
 })();

@@ -74,6 +74,10 @@
       sessionStorage.setItem('qa_registered_email', user.email);
       location.href = 'login.html';
     } catch (err) {
+      QA.showServerErrors(err, {
+        firstName: 'reg-first-name', lastName: 'reg-last-name', email: 'reg-email', phone: 'reg-phone',
+        birthDate: 'reg-birth-date', country: 'reg-country', password: 'reg-password',
+      });
       error.textContent = err.message;
       error.hidden = false;
       error.scrollIntoView({ behavior: 'smooth', block: 'center' });
