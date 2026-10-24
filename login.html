@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="lt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prisijungimas | QA Turgus</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f46e5'/%3E%3Ctext x='32' y='42' font-family='Arial' font-weight='700' font-size='28' fill='white' text-anchor='middle'%3EQA%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="js/core.js" defer></script>
+  <script src="js/pages/login.js" defer></script>
+</head>
+<body data-page="login">
+  <a class="skip-link" href="#main">Pereiti prie turinio</a>
+  <header id="site-header" class="site-header"></header>
+
+  <main id="main" class="container page">
+    <div class="auth-wrap">
+      <section class="card auth-card" aria-labelledby="login-title">
+        <h1 id="login-title">Prisijungimas</h1>
+        <p class="muted">Prisijunkite, kad galėtumėte pateikti užsakymą ir matyti jo istoriją.</p>
+
+        <div id="login-info" class="alert alert-success" role="status" data-testid="login-info" hidden></div>
+        <div id="login-error" class="alert alert-error" role="alert" data-testid="login-error" hidden></div>
+
+        <form id="login-form" novalidate data-testid="login-form">
+          <div class="field">
+            <label for="login-email">El. paštas</label>
+            <input type="email" id="login-email" name="email" autocomplete="username" placeholder="vardas@pavyzdys.lt" data-testid="login-email" aria-describedby="login-email-error">
+            <p class="field-error" id="login-email-error" data-testid="login-email-error" hidden></p>
+          </div>
+          <div class="field">
+            <label for="login-password">Slaptažodis</label>
+            <div class="input-group">
+              <input type="password" id="login-password" name="password" autocomplete="current-password" data-testid="login-password" aria-describedby="login-password-error">
+              <button type="button" class="btn btn-ghost pw-toggle" data-toggle-password="login-password" aria-label="Rodyti slaptažodį" aria-pressed="false" data-testid="login-password-toggle">Rodyti</button>
+            </div>
+            <p class="field-error" id="login-password-error" data-testid="login-password-error" hidden></p>
+          </div>
+          <div class="form-row-between">
+            <label class="checkbox">
+              <input type="checkbox" id="login-remember" name="remember" data-testid="login-remember">
+              <span>Prisiminti mane 7 dienas</span>
+            </label>
+            <a href="contact.html" class="small">Pamiršote slaptažodį?</a>
+          </div>
+          <button type="submit" id="login-submit" class="btn btn-primary btn-block btn-lg" data-testid="login-submit">Prisijungti</button>
+        </form>
+
+        <p class="auth-switch">Neturite paskyros? <a href="register.html" data-testid="go-to-register">Užsiregistruokite</a></p>
+      </section>
+
+      <aside class="card demo-users" aria-labelledby="demo-title" data-testid="demo-users">
+        <h2 id="demo-title">Demo vartotojai</h2>
+        <p class="muted small">Visų slaptažodis: <code>Slaptas123!</code></p>
+        <table class="table compact">
+          <thead><tr><th scope="col">El. paštas</th><th scope="col">Elgsena</th><th scope="col"><span class="sr-only">Veiksmas</span></th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>standartinis@test.lt</code></td>
+              <td>Įprastas vartotojas</td>
+              <td><button type="button" class="link-btn" data-fill-user="standartinis@test.lt" data-testid="fill-standard">Naudoti</button></td>
+            </tr>
+            <tr>
+              <td><code>uzblokuotas@test.lt</code></td>
+              <td>Paskyra užblokuota – prisijungti nepavyks</td>
+              <td><button type="button" class="link-btn" data-fill-user="uzblokuotas@test.lt" data-testid="fill-locked">Naudoti</button></td>
+            </tr>
+            <tr>
+              <td><code>letas@test.lt</code></td>
+              <td>Viskas veikia lėtai (2,5–4 s)</td>
+              <td><button type="button" class="link-btn" data-fill-user="letas@test.lt" data-testid="fill-slow">Naudoti</button></td>
+            </tr>
+            <tr>
+              <td><code>klaidingas@test.lt</code></td>
+              <td>Užsakymo pateikimas visada baigiasi serverio klaida</td>
+              <td><button type="button" class="link-btn" data-fill-user="klaidingas@test.lt" data-testid="fill-error">Naudoti</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </aside>
+    </div>
+  </main>
+
+  <footer id="site-footer" class="site-footer"></footer>
+</body>
+</html>

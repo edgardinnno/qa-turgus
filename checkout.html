@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="lt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Apmokėjimas | QA Turgus</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f46e5'/%3E%3Ctext x='32' y='42' font-family='Arial' font-weight='700' font-size='28' fill='white' text-anchor='middle'%3EQA%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="js/core.js" defer></script>
+  <script src="js/pages/checkout.js" defer></script>
+</head>
+<body data-page="checkout">
+  <a class="skip-link" href="#main">Pereiti prie turinio</a>
+  <header id="site-header" class="site-header"></header>
+
+  <main id="main" class="container page">
+    <h1>Apmokėjimas</h1>
+
+    <div id="checkout-content" hidden>
+      <ol class="stepper" data-testid="checkout-stepper" aria-label="Apmokėjimo žingsniai">
+        <li data-step="1" class="active" aria-current="step" data-testid="stepper-1"><span class="step-num">1</span><span class="step-label">Adresas</span></li>
+        <li data-step="2" data-testid="stepper-2"><span class="step-num">2</span><span class="step-label">Pristatymas</span></li>
+        <li data-step="3" data-testid="stepper-3"><span class="step-num">3</span><span class="step-label">Mokėjimas</span></li>
+        <li data-step="4" data-testid="stepper-4"><span class="step-num">4</span><span class="step-label">Peržiūra</span></li>
+      </ol>
+
+      <div class="checkout-layout">
+        <form id="checkout-form" class="card checkout-form" novalidate data-testid="checkout-form">
+          <div id="checkout-error" class="alert alert-error" role="alert" data-testid="checkout-error" hidden></div>
+
+          <!-- 1. Adresas -->
+          <section class="step" data-step="1" data-testid="step-address" aria-labelledby="step1-title">
+            <h2 id="step1-title" tabindex="-1">1. Pristatymo adresas</h2>
+            <div class="grid-2">
+              <div class="field">
+                <label for="ship-first-name">Vardas</label>
+                <input type="text" id="ship-first-name" autocomplete="given-name" data-testid="ship-first-name">
+                <p class="field-error" id="ship-first-name-error" data-testid="ship-first-name-error" hidden></p>
+              </div>
+              <div class="field">
+                <label for="ship-last-name">Pavardė</label>
+                <input type="text" id="ship-last-name" autocomplete="family-name" data-testid="ship-last-name">
+                <p class="field-error" id="ship-last-name-error" data-testid="ship-last-name-error" hidden></p>
+              </div>
+            </div>
+            <div class="field">
+              <label for="ship-phone">Telefonas</label>
+              <input type="tel" id="ship-phone" autocomplete="tel" placeholder="+37060000000" data-testid="ship-phone">
+              <p class="field-error" id="ship-phone-error" data-testid="ship-phone-error" hidden></p>
+            </div>
+            <div class="field">
+              <label for="ship-address">Gatvė, namo ir buto numeris</label>
+              <input type="text" id="ship-address" autocomplete="street-address" placeholder="Testuotojų g. 1-2" data-testid="ship-address">
+              <p class="field-error" id="ship-address-error" data-testid="ship-address-error" hidden></p>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label for="ship-city">Miestas</label>
+                <input type="text" id="ship-city" autocomplete="address-level2" placeholder="Vilnius" data-testid="ship-city">
+                <p class="field-error" id="ship-city-error" data-testid="ship-city-error" hidden></p>
+              </div>
+              <div class="field">
+                <label for="ship-postal">Pašto kodas</label>
+                <input type="text" id="ship-postal" autocomplete="postal-code" placeholder="LT-01234" data-testid="ship-postal">
+                <p class="field-error" id="ship-postal-error" data-testid="ship-postal-error" hidden></p>
+              </div>
+            </div>
+            <div class="field">
+              <label for="ship-notes">Pastabos kurjeriui <span class="muted small">(neprivaloma)</span></label>
+              <textarea id="ship-notes" rows="2" maxlength="200" data-testid="ship-notes"></textarea>
+            </div>
+          </section>
+
+          <!-- 2. Pristatymas -->
+          <section class="step" data-step="2" data-testid="step-delivery" aria-labelledby="step2-title" hidden>
+            <h2 id="step2-title" tabindex="-1">2. Pristatymo būdas</h2>
+            <fieldset class="radio-cards">
+              <legend class="sr-only">Pasirinkite pristatymo būdą</legend>
+              <label class="radio-card">
+                <input type="radio" name="delivery" value="courier" checked data-testid="delivery-courier">
+                <span class="radio-card-body"><strong>Kurjeris į namus</strong><span class="muted small">1–2 darbo dienos</span></span>
+                <span class="radio-card-price" id="price-courier" data-testid="delivery-price-courier"></span>
+              </label>
+              <label class="radio-card">
+                <input type="radio" name="delivery" value="parcel" data-testid="delivery-parcel">
+                <span class="radio-card-body"><strong>Paštomatas</strong><span class="muted small">1–3 darbo dienos</span></span>
+                <span class="radio-card-price" id="price-parcel" data-testid="delivery-price-parcel"></span>
+              </label>
+              <label class="radio-card">
+                <input type="radio" name="delivery" value="pickup" data-testid="delivery-pickup">
+                <span class="radio-card-body"><strong>Atsiėmimas parduotuvėje</strong><span class="muted small">Jau rytoj</span></span>
+                <span class="radio-card-price" id="price-pickup" data-testid="delivery-price-pickup"></span>
+              </label>
+            </fieldset>
+            <div class="field" id="parcel-field" hidden>
+              <label for="parcel-locker">Paštomatas</label>
+              <select id="parcel-locker" data-testid="parcel-locker-select">
+                <option value="">Pasirinkite paštomatą</option>
+              </select>
+              <p class="field-error" id="parcel-locker-error" data-testid="parcel-locker-error" hidden></p>
+            </div>
+            <div class="field" id="store-field" hidden>
+              <label for="pickup-store">Parduotuvė</label>
+              <select id="pickup-store" data-testid="pickup-store-select">
+                <option value="">Pasirinkite parduotuvę</option>
+              </select>
+              <p class="field-error" id="pickup-store-error" data-testid="pickup-store-error" hidden></p>
+            </div>
+          </section>
+
+          <!-- 3. Mokėjimas -->
+          <section class="step" data-step="3" data-testid="step-payment" aria-labelledby="step3-title" hidden>
+            <h2 id="step3-title" tabindex="-1">3. Mokėjimo būdas</h2>
+            <div class="alert alert-info small" data-testid="test-cards-info">
+              <strong>Mokomasis puslapis – neįveskite tikrų kortelės duomenų.</strong>
+              Testinės kortelės: <code>4242 4242 4242 4242</code> – sėkmingas mokėjimas,
+              <code>4000 0000 0000 0002</code> – kortelė atmesta,
+              <code>4000 0000 0000 9995</code> – nepakanka lėšų. Galiojimo data – bet kuri ateities data, CVC – bet kurie 3 skaitmenys.
+            </div>
+            <fieldset class="radio-cards">
+              <legend class="sr-only">Pasirinkite mokėjimo būdą</legend>
+              <label class="radio-card">
+                <input type="radio" name="payment" value="card" id="pay-card" checked data-testid="payment-card">
+                <span class="radio-card-body"><strong>Mokėjimo kortelė</strong><span class="muted small">Visa, Mastercard</span></span>
+              </label>
+              <label class="radio-card">
+                <input type="radio" name="payment" value="bank" id="pay-bank" data-testid="payment-bank">
+                <span class="radio-card-body"><strong>Bankinis pavedimas</strong><span class="muted small">Per internetinę bankininkystę</span></span>
+              </label>
+              <label class="radio-card">
+                <input type="radio" name="payment" value="cash" id="pay-cash" data-testid="payment-cash">
+                <span class="radio-card-body"><strong>Grynaisiais atsiimant</strong>
+                  <span class="muted small">Mokėsite kurjeriui arba parduotuvėje</span>
+                  <span class="small warn-text" id="cash-unavailable" data-testid="cash-unavailable" hidden>Negalima pasirinkus paštomatą</span>
+                </span>
+              </label>
+            </fieldset>
+
+            <div id="card-fields" data-testid="card-fields">
+              <div class="field">
+                <label for="card-name">Kortelės savininkas</label>
+                <input type="text" id="card-name" autocomplete="off" placeholder="Vardas Pavardė" data-testid="card-name">
+                <p class="field-error" id="card-name-error" data-testid="card-name-error" hidden></p>
+              </div>
+              <div class="field">
+                <label for="card-number">Kortelės numeris</label>
+                <div class="input-with-badge">
+                  <input type="text" id="card-number" inputmode="numeric" autocomplete="off" placeholder="0000 0000 0000 0000" maxlength="19" data-testid="card-number">
+                  <span class="card-brand" id="card-brand" data-testid="card-brand" hidden></span>
+                </div>
+                <p class="field-error" id="card-number-error" data-testid="card-number-error" hidden></p>
+              </div>
+              <div class="grid-2">
+                <div class="field">
+                  <label for="card-expiry">Galioja iki</label>
+                  <input type="text" id="card-expiry" inputmode="numeric" autocomplete="off" placeholder="MM/YY" maxlength="5" data-testid="card-expiry">
+                  <p class="field-error" id="card-expiry-error" data-testid="card-expiry-error" hidden></p>
+                </div>
+                <div class="field">
+                  <label for="card-cvc">CVC <span class="tooltip" tabindex="0" aria-label="Kas yra CVC?" data-tooltip="3 skaitmenys kortelės nugarėlėje">?</span></label>
+                  <input type="text" id="card-cvc" inputmode="numeric" autocomplete="off" placeholder="123" maxlength="3" data-testid="card-cvc">
+                  <p class="field-error" id="card-cvc-error" data-testid="card-cvc-error" hidden></p>
+                </div>
+              </div>
+            </div>
+
+            <div id="bank-fields" data-testid="bank-fields" hidden>
+              <div class="field">
+                <label for="bank-select">Bankas</label>
+                <select id="bank-select" data-testid="bank-select">
+                  <option value="">Pasirinkite banką</option>
+                </select>
+                <p class="field-error" id="bank-select-error" data-testid="bank-select-error" hidden></p>
+              </div>
+            </div>
+
+            <p id="cash-note" class="muted" data-testid="cash-note" hidden>Už užsakymą sumokėsite atsiimdami prekes.</p>
+          </section>
+
+          <!-- 4. Peržiūra -->
+          <section class="step" data-step="4" data-testid="step-review" aria-labelledby="step4-title" hidden>
+            <h2 id="step4-title" tabindex="-1">4. Užsakymo peržiūra</h2>
+            <div id="review-summary" class="review-grid" data-testid="review-summary"></div>
+            <div class="field">
+              <label class="checkbox">
+                <input type="checkbox" id="accept-terms" data-testid="accept-terms" aria-describedby="accept-terms-error">
+                <span>Patvirtinu, kad užsakymas teisingas, ir sutinku su pirkimo taisyklėmis</span>
+              </label>
+              <p class="field-error" id="accept-terms-error" data-testid="accept-terms-error" hidden></p>
+            </div>
+          </section>
+
+          <div class="step-actions">
+            <button type="button" id="prev-step" class="btn btn-secondary" data-testid="prev-step" hidden>← Atgal</button>
+            <button type="submit" id="next-step" class="btn btn-primary" data-testid="next-step">Toliau →</button>
+            <button type="submit" id="place-order" class="btn btn-primary btn-lg" data-testid="place-order" hidden>Pateikti užsakymą</button>
+          </div>
+        </form>
+
+        <aside class="card summary" aria-labelledby="checkout-summary-title" data-testid="checkout-summary">
+          <h2 id="checkout-summary-title">Jūsų užsakymas</h2>
+          <ul id="summary-items" class="mini-items"></ul>
+          <dl id="totals" class="totals"></dl>
+          <a href="cart.html" class="small" data-testid="edit-cart">Redaguoti krepšelį</a>
+        </aside>
+      </div>
+    </div>
+  </main>
+
+  <footer id="site-footer" class="site-footer"></footer>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="lt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mano paskyra | QA Turgus</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f46e5'/%3E%3Ctext x='32' y='42' font-family='Arial' font-weight='700' font-size='28' fill='white' text-anchor='middle'%3EQA%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="js/core.js" defer></script>
+  <script src="js/pages/account.js" defer></script>
+</head>
+<body data-page="account">
+  <a class="skip-link" href="#main">Pereiti prie turinio</a>
+  <header id="site-header" class="site-header"></header>
+
+  <main id="main" class="container page">
+    <div id="account-content" class="account-layout" hidden>
+      <aside class="card account-side">
+        <h1 id="account-greeting" data-testid="account-greeting"></h1>
+        <p class="muted small" id="account-since" data-testid="account-since"></p>
+        <nav class="account-nav" aria-label="Paskyros meniu">
+          <a href="#profile" data-testid="account-tab-profile">Profilis</a>
+          <a href="#password" data-testid="account-tab-password">Slaptažodis</a>
+          <a href="#orders" data-testid="account-tab-orders">Užsakymai <span class="pill" id="orders-count" data-testid="orders-count">0</span></a>
+        </nav>
+      </aside>
+
+      <div class="account-main">
+        <section id="section-profile" class="card" aria-labelledby="profile-title" data-testid="section-profile">
+          <h2 id="profile-title">Profilio informacija</h2>
+          <form id="profile-form" novalidate data-testid="profile-form">
+            <div class="field">
+              <label for="profile-email">El. paštas</label>
+              <input type="email" id="profile-email" readonly data-testid="profile-email" aria-describedby="profile-email-hint">
+              <p class="field-hint" id="profile-email-hint">El. pašto adreso pakeisti negalima.</p>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label for="profile-first-name">Vardas</label>
+                <input type="text" id="profile-first-name" autocomplete="given-name" data-testid="profile-first-name">
+                <p class="field-error" id="profile-first-name-error" data-testid="profile-first-name-error" hidden></p>
+              </div>
+              <div class="field">
+                <label for="profile-last-name">Pavardė</label>
+                <input type="text" id="profile-last-name" autocomplete="family-name" data-testid="profile-last-name">
+                <p class="field-error" id="profile-last-name-error" data-testid="profile-last-name-error" hidden></p>
+              </div>
+            </div>
+            <div class="field">
+              <label for="profile-phone">Telefonas</label>
+              <input type="tel" id="profile-phone" autocomplete="tel" placeholder="+37060000000" data-testid="profile-phone">
+              <p class="field-error" id="profile-phone-error" data-testid="profile-phone-error" hidden></p>
+            </div>
+            <div class="field">
+              <label class="checkbox">
+                <input type="checkbox" id="profile-newsletter" data-testid="profile-newsletter">
+                <span>Gauti naujienlaiškį</span>
+              </label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" id="profile-save" class="btn btn-primary" data-testid="profile-save" disabled>Išsaugoti pakeitimus</button>
+              <span class="muted small" id="profile-dirty" data-testid="profile-dirty" hidden>Turite neišsaugotų pakeitimų</span>
+            </div>
+          </form>
+        </section>
+
+        <section id="section-password" class="card" aria-labelledby="password-title" data-testid="section-password" hidden>
+          <h2 id="password-title">Slaptažodžio keitimas</h2>
+          <div id="password-error" class="alert alert-error" role="alert" data-testid="password-error" hidden></div>
+          <form id="password-form" novalidate data-testid="password-form">
+            <div class="field">
+              <label for="pw-current">Dabartinis slaptažodis</label>
+              <input type="password" id="pw-current" autocomplete="current-password" data-testid="pw-current">
+              <p class="field-error" id="pw-current-error" data-testid="pw-current-error" hidden></p>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label for="pw-new">Naujas slaptažodis</label>
+                <input type="password" id="pw-new" autocomplete="new-password" data-testid="pw-new">
+                <p class="field-error" id="pw-new-error" data-testid="pw-new-error" hidden></p>
+              </div>
+              <div class="field">
+                <label for="pw-confirm">Pakartokite naują slaptažodį</label>
+                <input type="password" id="pw-confirm" autocomplete="new-password" data-testid="pw-confirm">
+                <p class="field-error" id="pw-confirm-error" data-testid="pw-confirm-error" hidden></p>
+              </div>
+            </div>
+            <div id="pw-new-meter" class="password-meter"></div>
+            <button type="submit" id="password-save" class="btn btn-primary" data-testid="password-save">Pakeisti slaptažodį</button>
+          </form>
+        </section>
+
+        <section id="section-orders" class="card" aria-labelledby="orders-title" data-testid="section-orders" hidden>
+          <h2 id="orders-title">Mano užsakymai</h2>
+          <div id="orders-empty" class="empty-state compact" data-testid="orders-empty" hidden>
+            <p class="muted">Užsakymų dar nėra.</p>
+            <a href="index.html" class="btn btn-primary btn-sm">Pradėti apsipirkimą</a>
+          </div>
+          <div id="orders-table-wrap" class="table-wrap">
+            <table class="table" data-testid="orders-table">
+              <thead>
+                <tr><th scope="col">Nr.</th><th scope="col">Data</th><th scope="col">Prekės</th><th scope="col">Suma</th><th scope="col">Būsena</th></tr>
+              </thead>
+              <tbody id="orders-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer id="site-footer" class="site-footer"></footer>
+</body>
+</html>

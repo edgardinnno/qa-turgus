@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="lt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prekė | QA Turgus</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f46e5'/%3E%3Ctext x='32' y='42' font-family='Arial' font-weight='700' font-size='28' fill='white' text-anchor='middle'%3EQA%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="js/core.js" defer></script>
+  <script src="js/pages/product.js" defer></script>
+</head>
+<body data-page="product">
+  <a class="skip-link" href="#main">Pereiti prie turinio</a>
+  <header id="site-header" class="site-header"></header>
+
+  <main id="main" class="container page">
+    <nav id="breadcrumbs" class="breadcrumbs" aria-label="Naršymo kelias" data-testid="breadcrumbs"></nav>
+
+    <div id="loading" class="loading" data-testid="loading"><span class="spinner" aria-hidden="true"></span> Kraunama prekė…</div>
+    <div id="load-error" class="alert alert-error" role="alert" data-testid="load-error" hidden></div>
+
+    <div id="not-found" class="empty-state" data-testid="not-found" hidden>
+      <div class="empty-icon" aria-hidden="true">🤷</div>
+      <h1>Prekė nerasta</h1>
+      <p class="muted">Tokios prekės nėra arba ji buvo pašalinta.</p>
+      <a href="index.html" class="btn btn-primary">Grįžti į parduotuvę</a>
+    </div>
+
+    <div id="product" hidden></div>
+
+    <section id="related" class="related" aria-labelledby="related-title" hidden>
+      <h2 id="related-title">Taip pat gali patikti</h2>
+      <div id="related-grid" class="related-grid" data-testid="related-products"></div>
+    </section>
+  </main>
+
+  <footer id="site-footer" class="site-footer"></footer>
+</body>
+</html>

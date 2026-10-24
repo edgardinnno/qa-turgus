@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="lt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Registracija | QA Turgus</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f46e5'/%3E%3Ctext x='32' y='42' font-family='Arial' font-weight='700' font-size='28' fill='white' text-anchor='middle'%3EQA%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="js/core.js" defer></script>
+  <script src="js/pages/register.js" defer></script>
+</head>
+<body data-page="register">
+  <a class="skip-link" href="#main">Pereiti prie turinio</a>
+  <header id="site-header" class="site-header"></header>
+
+  <main id="main" class="container page">
+    <section class="card auth-card wide" aria-labelledby="register-title">
+      <h1 id="register-title">Naujo vartotojo registracija</h1>
+      <p class="muted">Laukai, pažymėti <span class="req">*</span>, yra privalomi.</p>
+
+      <div id="register-error" class="alert alert-error" role="alert" data-testid="register-error" hidden></div>
+
+      <form id="register-form" novalidate data-testid="register-form">
+        <fieldset class="form-section">
+          <legend>Asmeninė informacija</legend>
+          <div class="grid-2">
+            <div class="field">
+              <label for="reg-first-name">Vardas <span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="reg-first-name" name="firstName" autocomplete="given-name" data-testid="register-first-name" aria-describedby="reg-first-name-error">
+              <p class="field-error" id="reg-first-name-error" data-testid="register-first-name-error" hidden></p>
+            </div>
+            <div class="field">
+              <label for="reg-last-name">Pavardė <span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="reg-last-name" name="lastName" autocomplete="family-name" data-testid="register-last-name" aria-describedby="reg-last-name-error">
+              <p class="field-error" id="reg-last-name-error" data-testid="register-last-name-error" hidden></p>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label for="reg-birth-date">Gimimo data <span class="req" aria-hidden="true">*</span></label>
+              <input type="date" id="reg-birth-date" name="birthDate" autocomplete="bday" data-testid="register-birth-date" aria-describedby="reg-birth-date-error">
+              <p class="field-error" id="reg-birth-date-error" data-testid="register-birth-date-error" hidden></p>
+            </div>
+            <div class="field">
+              <label for="reg-country">Šalis <span class="req" aria-hidden="true">*</span></label>
+              <select id="reg-country" name="country" autocomplete="country" data-testid="register-country" aria-describedby="reg-country-error">
+                <option value="">Pasirinkite šalį</option>
+              </select>
+              <p class="field-error" id="reg-country-error" data-testid="register-country-error" hidden></p>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="form-section">
+          <legend>Kontaktai</legend>
+          <div class="grid-2">
+            <div class="field">
+              <label for="reg-email">El. paštas <span class="req" aria-hidden="true">*</span></label>
+              <input type="email" id="reg-email" name="email" autocomplete="email" placeholder="vardas@pavyzdys.lt" data-testid="register-email" aria-describedby="reg-email-error">
+              <p class="field-error" id="reg-email-error" data-testid="register-email-error" hidden></p>
+            </div>
+            <div class="field">
+              <label for="reg-phone">Telefonas <span class="muted small">(neprivaloma)</span></label>
+              <input type="tel" id="reg-phone" name="phone" autocomplete="tel" placeholder="+37060000000" data-testid="register-phone" aria-describedby="reg-phone-hint reg-phone-error">
+              <p class="field-hint" id="reg-phone-hint">Formatas: +370XXXXXXXX</p>
+              <p class="field-error" id="reg-phone-error" data-testid="register-phone-error" hidden></p>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="form-section">
+          <legend>Slaptažodis</legend>
+          <div class="grid-2">
+            <div class="field">
+              <label for="reg-password">Slaptažodis <span class="req" aria-hidden="true">*</span></label>
+              <div class="input-group">
+                <input type="password" id="reg-password" name="password" autocomplete="new-password" data-testid="register-password" aria-describedby="reg-password-error">
+                <button type="button" class="btn btn-ghost pw-toggle" data-toggle-password="reg-password" aria-label="Rodyti slaptažodį" aria-pressed="false" data-testid="register-password-toggle">Rodyti</button>
+              </div>
+              <p class="field-error" id="reg-password-error" data-testid="register-password-error" hidden></p>
+            </div>
+            <div class="field">
+              <label for="reg-password-confirm">Pakartokite slaptažodį <span class="req" aria-hidden="true">*</span></label>
+              <input type="password" id="reg-password-confirm" name="passwordConfirm" autocomplete="new-password" data-testid="register-password-confirm" aria-describedby="reg-password-confirm-error">
+              <p class="field-error" id="reg-password-confirm-error" data-testid="register-password-confirm-error" hidden></p>
+            </div>
+          </div>
+          <div id="password-meter" class="password-meter"></div>
+        </fieldset>
+
+        <div class="field">
+          <label class="checkbox">
+            <input type="checkbox" id="reg-newsletter" name="newsletter" data-testid="register-newsletter">
+            <span>Noriu gauti naujienlaiškį su pasiūlymais</span>
+          </label>
+        </div>
+        <div class="field">
+          <label class="checkbox">
+            <input type="checkbox" id="reg-terms" name="terms" data-testid="register-terms" aria-describedby="reg-terms-error">
+            <span>Sutinku su <a href="#taisykles" data-testid="terms-link">naudojimosi taisyklėmis</a> <span class="req" aria-hidden="true">*</span></span>
+          </label>
+          <p class="field-error" id="reg-terms-error" data-testid="register-terms-error" hidden></p>
+        </div>
+
+        <button type="submit" id="register-submit" class="btn btn-primary btn-lg" data-testid="register-submit">Sukurti paskyrą</button>
+      </form>
+
+      <details class="terms" id="taisykles">
+        <summary>Naudojimosi taisyklės</summary>
+        <p class="small muted">Tai mokomasis puslapis. Įvesti duomenys saugomi tik jūsų naršyklės atmintyje (localStorage) ir niekur nesiunčiami. Nenaudokite tikrų slaptažodžių ar asmens duomenų.</p>
+      </details>
+
+      <p class="auth-switch">Jau turite paskyrą? <a href="login.html" data-testid="go-to-login">Prisijunkite</a></p>
+    </section>
+  </main>
+
+  <footer id="site-footer" class="site-footer"></footer>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="lt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Krepšelis | QA Turgus</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f46e5'/%3E%3Ctext x='32' y='42' font-family='Arial' font-weight='700' font-size='28' fill='white' text-anchor='middle'%3EQA%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="js/core.js" defer></script>
+  <script src="js/pages/cart.js" defer></script>
+</head>
+<body data-page="cart">
+  <a class="skip-link" href="#main">Pereiti prie turinio</a>
+  <header id="site-header" class="site-header"></header>
+
+  <main id="main" class="container page">
+    <div class="section-head">
+      <h1>Pirkinių krepšelis</h1>
+      <p class="muted" id="items-count" data-testid="cart-items-count"></p>
+    </div>
+
+    <div id="cart-empty" class="empty-state" data-testid="cart-empty" hidden>
+      <div class="empty-icon" aria-hidden="true">🛒</div>
+      <h2>Jūsų krepšelis tuščias</h2>
+      <p class="muted">Atrodo, kad dar nieko neišsirinkote.</p>
+      <a href="index.html" class="btn btn-primary" data-testid="start-shopping">Pradėti apsipirkimą</a>
+    </div>
+
+    <div id="cart-content" class="cart-layout" hidden>
+      <section aria-label="Prekės krepšelyje">
+        <ul id="cart-items" class="cart-items" data-testid="cart-items"></ul>
+        <div class="cart-actions">
+          <a href="index.html" class="btn btn-ghost" data-testid="continue-shopping">← Tęsti apsipirkimą</a>
+          <button type="button" id="clear-cart" class="btn btn-ghost danger" data-testid="clear-cart">Išvalyti krepšelį</button>
+        </div>
+      </section>
+
+      <aside class="card summary" aria-labelledby="summary-title" data-testid="cart-summary">
+        <h2 id="summary-title">Užsakymo suvestinė</h2>
+        <div id="free-shipping" class="free-shipping" data-testid="free-shipping"></div>
+        <dl id="totals" class="totals"></dl>
+
+        <form id="promo-form" class="promo-form" data-testid="promo-form" novalidate>
+          <div class="field">
+            <label for="promo-code">Nuolaidos kodas</label>
+            <div class="input-group">
+              <input type="text" id="promo-code" name="promo" autocomplete="off" placeholder="pvz. PLAYWRIGHT10" data-testid="promo-input" aria-describedby="promo-code-error">
+              <button type="submit" class="btn btn-secondary" data-testid="promo-apply">Pritaikyti</button>
+            </div>
+            <p class="field-error" id="promo-code-error" data-testid="promo-error" hidden></p>
+          </div>
+        </form>
+        <div id="promo-applied" class="promo-applied" data-testid="promo-applied" hidden></div>
+
+        <button type="button" id="checkout-btn" class="btn btn-primary btn-block btn-lg" data-testid="checkout-button">Pereiti prie apmokėjimo</button>
+        <p class="muted small center">Kainos nurodytos su PVM. Pristatymo kaina galutinai apskaičiuojama apmokėjimo metu.</p>
+      </aside>
+    </div>
+  </main>
+
+  <footer id="site-footer" class="site-footer"></footer>
+</body>
+</html>

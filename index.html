@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="lt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Parduotuvė | QA Turgus</title>
+  <meta name="description" content="Mokomoji internetinė parduotuvė Playwright testų automatizavimui.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f46e5'/%3E%3Ctext x='32' y='42' font-family='Arial' font-weight='700' font-size='28' fill='white' text-anchor='middle'%3EQA%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="js/core.js" defer></script>
+  <script src="js/pages/catalog.js" defer></script>
+</head>
+<body data-page="catalog">
+  <a class="skip-link" href="#main">Pereiti prie turinio</a>
+  <header id="site-header" class="site-header"></header>
+
+  <main id="main" class="container page">
+    <section class="hero" data-testid="hero">
+      <div class="hero-text">
+        <p class="eyebrow">Mokomoji parduotuvė</p>
+        <h1>Viskas, ko reikia testams – ir dar šiek tiek</h1>
+        <p>Nemokamas pristatymas nuo 50 €. Išbandykite nuolaidos kodą <code data-testid="hero-promo">PLAYWRIGHT10</code> ir gaukite 10 % nuolaidą.</p>
+      </div>
+      <ul class="category-tiles" aria-label="Populiarios kategorijos">
+        <li><a href="index.html?cat=elektronika" data-category-link="elektronika" data-testid="category-tile-elektronika"><span aria-hidden="true">🎧</span> Elektronika</a></li>
+        <li><a href="index.html?cat=drabuziai" data-category-link="drabuziai" data-testid="category-tile-drabuziai"><span aria-hidden="true">👕</span> Drabužiai</a></li>
+        <li><a href="index.html?cat=namai" data-category-link="namai" data-testid="category-tile-namai"><span aria-hidden="true">🪴</span> Namai</a></li>
+        <li><a href="index.html?cat=sportas" data-category-link="sportas" data-testid="category-tile-sportas"><span aria-hidden="true">👟</span> Sportas</a></li>
+        <li><a href="index.html?cat=knygos" data-category-link="knygos" data-testid="category-tile-knygos"><span aria-hidden="true">📘</span> Knygos</a></li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="catalog-title">
+      <div class="section-head">
+        <h2 id="catalog-title">Prekės</h2>
+        <p class="muted" id="results-count" data-testid="results-count" aria-live="polite"></p>
+      </div>
+
+      <form class="toolbar" id="filters" role="search" data-testid="filters">
+        <div class="field grow">
+          <label for="search">Paieška</label>
+          <input type="search" id="search" name="q" placeholder="Ieškoti prekių…" autocomplete="off" data-testid="search-input">
+        </div>
+        <div class="field">
+          <label for="category">Kategorija</label>
+          <select id="category" name="cat" data-testid="category-filter">
+            <option value="">Visos kategorijos</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="sort">Rikiuoti</label>
+          <select id="sort" name="sort" data-testid="sort-select">
+            <option value="popular">Populiariausios</option>
+            <option value="price-asc">Kaina: nuo mažiausios</option>
+            <option value="price-desc">Kaina: nuo didžiausios</option>
+            <option value="name-asc">Pavadinimas: A–Ž</option>
+            <option value="name-desc">Pavadinimas: Ž–A</option>
+            <option value="rating">Geriausiai įvertintos</option>
+          </select>
+        </div>
+        <label class="checkbox toolbar-check">
+          <input type="checkbox" id="in-stock" name="stock" data-testid="in-stock-filter">
+          <span>Tik turimos prekės</span>
+        </label>
+      </form>
+
+      <div id="loading" class="loading" data-testid="loading" hidden><span class="spinner" aria-hidden="true"></span> Kraunamos prekės…</div>
+      <div id="load-error" class="alert alert-error" role="alert" data-testid="load-error" hidden></div>
+
+      <div id="product-grid" class="product-grid" data-testid="product-grid"></div>
+
+      <div id="empty-state" class="empty-state" data-testid="empty-state" hidden>
+        <div class="empty-icon" aria-hidden="true">🔍</div>
+        <h3>Prekių nerasta</h3>
+        <p class="muted">Pabandykite pakeisti paieškos frazę arba filtrus.</p>
+        <button type="button" class="btn btn-secondary" id="clear-filters" data-testid="clear-filters">Išvalyti filtrus</button>
+      </div>
+
+      <nav id="pagination" class="pagination" aria-label="Puslapiavimas" data-testid="pagination"></nav>
+    </section>
+  </main>
+
+  <footer id="site-footer" class="site-footer"></footer>
+</body>
+</html>

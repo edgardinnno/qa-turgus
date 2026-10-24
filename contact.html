@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="lt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kontaktai | QA Turgus</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%234f46e5'/%3E%3Ctext x='32' y='42' font-family='Arial' font-weight='700' font-size='28' fill='white' text-anchor='middle'%3EQA%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="js/core.js" defer></script>
+  <script src="js/pages/contact.js" defer></script>
+</head>
+<body data-page="contact">
+  <a class="skip-link" href="#main">Pereiti prie turinio</a>
+  <header id="site-header" class="site-header"></header>
+
+  <main id="main" class="container page">
+    <h1>Kontaktai</h1>
+    <div class="contact-layout">
+      <section class="card" aria-labelledby="contact-title">
+        <h2 id="contact-title">Parašykite mums</h2>
+
+        <form id="contact-form" novalidate data-testid="contact-form">
+          <div class="grid-2">
+            <div class="field">
+              <label for="contact-name">Vardas</label>
+              <input type="text" id="contact-name" autocomplete="name" data-testid="contact-name">
+              <p class="field-error" id="contact-name-error" data-testid="contact-name-error" hidden></p>
+            </div>
+            <div class="field">
+              <label for="contact-email">El. paštas</label>
+              <input type="email" id="contact-email" autocomplete="email" data-testid="contact-email">
+              <p class="field-error" id="contact-email-error" data-testid="contact-email-error" hidden></p>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label for="contact-topic">Tema</label>
+              <select id="contact-topic" data-testid="contact-topic">
+                <option value="">Pasirinkite temą</option>
+                <option value="order">Užsakymo būsena</option>
+                <option value="return">Prekės grąžinimas</option>
+                <option value="account">Paskyra ir prisijungimas</option>
+                <option value="other">Kita</option>
+              </select>
+              <p class="field-error" id="contact-topic-error" data-testid="contact-topic-error" hidden></p>
+            </div>
+            <div class="field" id="order-field" hidden>
+              <label for="contact-order">Užsakymo numeris <span class="muted small">(neprivaloma)</span></label>
+              <input type="text" id="contact-order" placeholder="ORD-123456" data-testid="contact-order">
+              <p class="field-error" id="contact-order-error" data-testid="contact-order-error" hidden></p>
+            </div>
+          </div>
+          <div class="field">
+            <label for="contact-message">Žinutė</label>
+            <textarea id="contact-message" rows="5" maxlength="500" data-testid="contact-message" aria-describedby="message-counter"></textarea>
+            <div class="field-meta">
+              <p class="field-error" id="contact-message-error" data-testid="contact-message-error" hidden></p>
+              <span class="counter" id="message-counter" data-testid="message-counter">0 / 500</span>
+            </div>
+          </div>
+          <div class="field">
+            <label for="contact-file">Priedas <span class="muted small">(PNG, JPG arba PDF, iki 2 MB)</span></label>
+            <input type="file" id="contact-file" accept=".png,.jpg,.jpeg,.pdf" data-testid="contact-file">
+            <div class="file-info" id="file-info" data-testid="file-info" hidden>
+              📎 <span id="file-name" data-testid="file-name"></span> <span class="muted small" id="file-size"></span>
+              <button type="button" class="link-btn danger" id="file-remove" data-testid="file-remove">Pašalinti</button>
+            </div>
+            <p class="field-error" id="contact-file-error" data-testid="contact-file-error" hidden></p>
+          </div>
+          <div class="field">
+            <label class="checkbox">
+              <input type="checkbox" id="contact-copy" data-testid="contact-copy">
+              <span>Atsiųsti man žinutės kopiją</span>
+            </label>
+          </div>
+          <button type="submit" id="contact-submit" class="btn btn-primary" data-testid="contact-submit">Siųsti žinutę</button>
+        </form>
+
+        <div id="contact-success" class="success-panel" data-testid="contact-success" hidden>
+          <div class="success-icon" aria-hidden="true">✓</div>
+          <h2 tabindex="-1">Žinutė išsiųsta!</h2>
+          <p>Jūsų užklausos numeris: <strong id="ticket-number" data-testid="ticket-number"></strong>. Atsakysime per 1 darbo dieną.</p>
+          <p class="muted small" id="copy-note" hidden>Žinutės kopiją išsiuntėme jūsų el. paštu.</p>
+          <button type="button" class="btn btn-secondary" id="contact-again" data-testid="contact-again">Rašyti dar kartą</button>
+        </div>
+      </section>
+
+      <aside class="contact-side">
+        <div class="card">
+          <h2>Kontaktinė informacija</h2>
+          <ul class="contact-list">
+            <li>📍 Testuotojų g. 1, Vilnius</li>
+            <li>📞 +370 600 00000</li>
+            <li>✉️ info@qa-turgus.test</li>
+            <li>🕘 I–V 9:00–18:00</li>
+          </ul>
+        </div>
+        <div class="card faq" data-testid="faq">
+          <h2>DUK</h2>
+          <details data-testid="faq-item">
+            <summary>Kiek kainuoja pristatymas?</summary>
+            <p>Kurjeriu – 4,99 €, į paštomatą – 2,99 €, atsiėmimas parduotuvėje – nemokamai. Užsakymams nuo 50 € pristatymas nemokamas.</p>
+          </details>
+          <details data-testid="faq-item">
+            <summary>Kokie nuolaidos kodai galioja?</summary>
+            <p><code>PLAYWRIGHT10</code> – 10 % nuolaida, <code>DIDELIS20</code> – 20 % užsakymams nuo 100 €, <code>NEMOKAMAS</code> – nemokamas pristatymas.</p>
+          </details>
+          <details data-testid="faq-item">
+            <summary>Ar galiu atšaukti užsakymą?</summary>
+            <p>Taip, kol užsakymo būsena yra „Apdorojamas“. Tai padarysite užsakymo puslapyje.</p>
+          </details>
+          <details data-testid="faq-item">
+            <summary>Kur saugomi mano duomenys?</summary>
+            <p>Tik jūsų naršyklėje (localStorage ir slapukuose). Duomenis bet kada galite ištrinti mygtuku „Atstatyti demo duomenis“ puslapio apačioje.</p>
+          </details>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <footer id="site-footer" class="site-footer"></footer>
+</body>
+</html>
